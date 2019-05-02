@@ -1,15 +1,22 @@
 btsnoop
 =======
 
-Parsing module for BtSnoop packet capture files and encapsulated Bluetooth packets
+Python-based parsing module for btsnoop packet capture files and encapsulated Bluetooth packets
+
+Originally forked from: https://github.com/joekickass/python-btsnoop
+
+Some enhancements inspired by: https://github.com/regnirof/hciparse.
+
+(NOTE: The latter added support for Apple PacketLogger packet capture files and encapsulated Bluetooth packets, which may be of interested later. 
+They made some undesirable changes to names, etc., which is the only reason I didn't fork from regnirof's repository.)
 
 Documentation
 -------------
 
 Specifications
-- BtSnoop format
-	- http://tools.ietf.org/html/rfc1761
-	- http://www.fte.com/webhelp/NFC/Content/Technical_Information/BT_Snoop_File_Format.htm
+- btsnoop format
+	- https://tools.ietf.org/html/rfc1761
+	- https://www.fte.com/webhelp/NFC/Content/Technical_Information/BT_Snoop_File_Format.htm
 - Bluetooth specification
 	- https://www.bluetooth.org/en-us/specification/adopted-specifications
 
