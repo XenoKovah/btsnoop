@@ -3,7 +3,7 @@ btsnoop
 
 Python-based parsing module for btsnoop packet capture files and encapsulated Bluetooth packets
 
-Originally forked from: https://github.com/joekickass/python-btsnoop
+Originally forked from: https://github.com/joekickass/python-btsnoop.
 
 Some enhancements inspired by: https://github.com/regnirof/hciparse.
 
