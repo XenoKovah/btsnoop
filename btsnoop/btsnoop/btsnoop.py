@@ -179,6 +179,24 @@ def flags_to_str(flags):
     return BTSNOOP_FLAGS[flags]
 
 
+def flags_to_direction(flags):
+    """
+    Returns a str indicating the direction of the packet (H2C or C2H)
+    """
+    assert flags in [0,1,2,3]
+    if flags in [0,2]:
+        return ">" # host->controller (or h2d?)
+    elif flags in [1, 3]:
+        return "<" # controller->host (or d2h?)
+
+def h2d(flags):
+    assert flags in [0,1,2,3]
+    if flags in [0,2]:
+        return 1
+    elif flags in [1, 3]: # device-to-host (i.e., controller-to-host)
+        return 0
+    raise BaseException('h2d error')
+
 def print_hdr():
     """
     Print the script header
