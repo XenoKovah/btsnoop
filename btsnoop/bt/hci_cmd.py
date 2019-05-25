@@ -278,6 +278,11 @@ def parse(data):
     data = data[3:]
     return opcode, length, data
 
+def get_cmds(records):
+	hci_uarts = map(lambda record: hci_uart.parse(record[4]), records)
+	hci_cmds = filter(lambda hci_type, hci_data: hci_type == hci_uart.HCI_CMD, hci_uarts)
+	return map(lambda hci_type, hci_data: hci_cmd.parse(hci_data), hci_cmds)
+
 def cmd_to_str(opcode):
     """
     Return a string representing the opcode

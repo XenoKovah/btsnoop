@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from executor import Executor
+from .executor import Executor
 
 class Phone(object):
 
@@ -13,8 +13,15 @@ class Phone(object):
             raise ValueError("Could not execute adb shell " + cmd)
         return out
 
-    def pull(self, src, dst):
-        cmd = "adb pull " + src + " " + dst
+    def pull(self, src, dst, a_mode=False, verbose=False):
+        """
+        pull [-a] REMOTE... LOCAL
+            copy files/dirs from device
+            -a: preserve file timestamp and mode
+        """
+        a = "-a" if a_mode else ""
+        cmd = f"adb pull {a} " + src + " " + dst
+        if verbose: print(f"[adb] ==> {cmd}")
         return Executor(cmd).execute()
 
     def push(self, src, dst):

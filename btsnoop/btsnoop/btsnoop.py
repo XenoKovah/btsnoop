@@ -44,8 +44,12 @@ def parse(filename):
     -----------------------
 
     References can be found here:
+
+    "Snoop Version 2 Packet Capture File Format"
     * http://tools.ietf.org/html/rfc1761
-    * http://www.fte.com/webhelp/NFC/Content/Technical_Information/BT_Snoop_File_Format.htm
+
+    "BTSnoop File Format"
+    * http://www.fte.com/webhelp/SD/Content/Technical_Information/BT_Snoop_File_Format.htm
 
     Return a list of records, each holding a tuple of:
     * sequence nbr
@@ -55,18 +59,18 @@ def parse(filename):
     * data
     """
     with open(filename, "rb") as f:
-
         # Validate file header
         (identification, version, type) = _read_file_header(f)
+        identification = identification.decode('utf-8')
         _validate_file_header(identification, version, type)
 
         # Not using the following data:
         # record[1] - original length
         # record[4] - cumulative drops
-        return map(lambda record:
+        rmap = map(lambda record:
             (record[0], record[2], record[3], _parse_time(record[5]), record[6]),
             _read_packet_records(f))
-
+        return list(rmap) ### explictly convert map to list object; python2->python3
 
 def _read_file_header(f):
     """
