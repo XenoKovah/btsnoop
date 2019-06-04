@@ -25,7 +25,7 @@ BTSNOOP_FLAGS = {
     }
 
 
-def parse(filename):
+def parse(filename, zero_based_index=False):
     """
     Parse a Btsnoop packet capture file.
 
@@ -69,7 +69,7 @@ def parse(filename):
         # record[4] - cumulative drops
         rmap = map(lambda record:
             (record[0], record[2], record[3], _parse_time(record[5]), record[6]),
-            _read_packet_records(f))
+            _read_packet_records(f, zero_based_index))
         return list(rmap) ### explictly convert map to list object; python2->python3
 
 def _read_file_header(f):
@@ -119,7 +119,7 @@ def _validate_file_header(identification, version, data_link_type):
     print("Btsnoop capture file version {0}, type {1}".format(version, data_link_type))
 
 
-def _read_packet_records(f):
+def _read_packet_records(f, zero_based_index=False):
     """
     A record should confirm to the following format
 
@@ -145,6 +145,9 @@ def _read_packet_records(f):
     All integer values are stored in "big-endian" order, with the high-order bits first.
     """
     seq_nbr = 1
+    if zero_based_index:
+        seq_nbr = 0
+
     while True:
         pkt_hdr = f.read(4 + 4 + 4 + 4 + 8)
         if not pkt_hdr or len(pkt_hdr) != 24:

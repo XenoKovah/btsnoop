@@ -2,6 +2,9 @@ from __future__ import unicode_literals
 from .executor import Executor
 
 class Phone(object):
+    """
+    https://developer.android.com/studio/command-line/adb
+    """
 
     def __init__(self, serial=None):
         self.serial = serial

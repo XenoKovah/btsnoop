@@ -1,11 +1,16 @@
 """
-  Parse hci commands
+Parse HCI Commands
 """
+
 import struct
+from . import hci_uart
+
+import ctypes
+from ctypes import c_uint
 
 
 """
-OpCodes and names for HCI commands according to the Bluetooth specification
+OpCodes and names for HCI commands according to the Bluetooth specification.
 
 OpCode is 2 bytes, of which OGF is the upper 6 bits and OCF is the lower 10 bits.
 
@@ -16,17 +21,31 @@ OpCode is 2 bytes, of which OGF is the upper 6 bits and OCF is the lower 10 bits
 |        OCF        |    OGF    |
 ---------------------------------
 """
+
+class CMD_HEADER_BITS( ctypes.LittleEndianStructure ):
+    _fields_ = [("opcode",  c_uint,  16),
+                ("length",  c_uint,  8)]
+
+class CMD_HEADER( ctypes.Union ):
+    """
+    This is a trick for converting bitfields to separate values
+    """
+    _fields_ = [("b", CMD_HEADER_BITS),
+                ("asbyte", c_uint)]
+
 HCI_COMMANDS = {
+
+# 7.1 LINK CONTROL COMMANDS (OGF = 0x01)
         0x0401 : "COMND Inquiry",
         0x0402 : "COMND Inquiry_Cancel",
         0x0403 : "COMND Periodic_Inquiry_Mode",
         0x0404 : "COMND Exit_Periodic_Inquiry_Mode",
-        0x0405 : "COMND Create_Connection",
-        0x0406 : "COMND Disconnect",
-        0x0408 : "COMND Create_Connection_Cancel",
-        0x0409 : "COMND Accept_Connection_Request",
-        0x040a : "COMND Reject_Connection_Request",
-        0x040b : "COMND Link_Key_Request_Reply",
+        0x0405 : "COMND Create_Connection",                # BD_ADDR (6), Packet_Type (2), 1, 1, 2, 1,
+        0x0406 : "COMND Disconnect",                       # Connection_Handle (12 bits)
+        0x0408 : "COMND Create_Connection_Cancel",         # BD_ADDR (6)
+        0x0409 : "COMND Accept_Connection_Request",        # BD_ADDR (6) role (1)
+        0x040a : "COMND Reject_Connection_Request",        # BD_ADDR (6), reason (1)
+        0x040b : "COMND Link_Key_Request_Reply",           # BD_ADDR (6), Link_Key (16)
         0x040c : "COMND Link_Key_Request_Negative_Reply",
         0x040d : "COMND PIN_Code_Request_Reply",
         0x040e : "COMND PIN_Code_Request_Negative_Reply",
@@ -70,6 +89,8 @@ HCI_COMMANDS = {
         0x0443 : "COMND Start_Synchronization_Train",
         0x0444 : "COMND Receive_Synchronization_Train",
         0x0445 : "COMND Remote_OOB_Extended_Data_Request_Reply",
+
+# 7.2 LINK POLICY COMMANDS (OGF = 0x02)
         0x0801 : "COMND Hold_Mode",
         0x0803 : "COMND Sniff_Mode",
         0x0804 : "COMND Exit_Sniff_Mode",
@@ -84,6 +105,8 @@ HCI_COMMANDS = {
         0x080f : "COMND Write_Default_Link_Policy_Settings",
         0x0810 : "COMND Flow_Specification",
         0x0811 : "COMND Sniff_Subrating",
+
+# 7.3 CONTROLLER & BASEBAND COMMANDS (OGF = 0x03)
         0x0c01 : "COMND Set_Event_Mask",
         0x0c03 : "COMND Reset",
         0x0c05 : "COMND Set_Event_Filter",
@@ -164,7 +187,7 @@ HCI_COMMANDS = {
         0x0c6c : "COMND Read_LE_Host_Support",
         0x0c6d : "COMND Write_LE_Host_Support",
         0x0c6e : "COMND Set_MWS_Channel_Parameters",
-        0x0c6f : "COMND  Set_ External_Frame_Configuration",
+        0x0c6f : "COMND Set_External_Frame_Configuration",
         0x0c70 : "COMND Set_MWS_Signaling",
         0x0c71 : "COMND Set_MWS_Transport_Layer",
         0x0c72 : "COMND Set_MWS_Scan_Frequency_Table",
@@ -183,6 +206,8 @@ HCI_COMMANDS = {
         0x0c7f : "COMND Write_Extended_Page_Timeout",
         0x0c80 : "COMND Read_Extended_Inquiry_Length",
         0x0c81 : "COMND Write_Extended_Inquiry_Length",
+
+# 7.4 INFORMATIONAL PARAMETERS (OGF = 0x04)
         0x1001 : "COMND Read_Local_Version_Information",
         0x1002 : "COMND Read_Local_Supported_Commands",
         0x1003 : "COMND Read_Local_Supported_Features",
@@ -191,6 +216,8 @@ HCI_COMMANDS = {
         0x1009 : "COMND Read_BD_ADDR",
         0x100a : "COMND Read_Data_Block_Size",
         0x100b : "COMND Read_Local_Supported_Codecs",
+
+# 7.5 STATUS PARAMETERS (OGF = 0x05)
         0x1401 : "COMND Read_Failed_Contact_Counter",
         0x1402 : "COMND Reset_Failed_Contact_Counter",
         0x1403 : "COMND Read_Link_Quality",
@@ -203,6 +230,8 @@ HCI_COMMANDS = {
         0x140b : "COMND Write_Remote_AMP_ASSOC",
         0x140c : "COMND Get_MWS_Transport_Layer_Configuration",
         0x140d : "COMND Set_Triggered_Clock_Capture",
+
+# 7.6 TESTING COMMANDS (OGF = 0x06)
         0x1801 : "COMND Read_Loopback_Mode",
         0x1802 : "COMND Write_Loopback_Mode",
         0x1803 : "COMND Enable_Device_Under_Test_Mode",
@@ -211,6 +240,10 @@ HCI_COMMANDS = {
         0x1808 : "COMND AMP_Test_End",
         0x1809 : "COMND AMP_Test",
         0x180a : "COMND Write_Secure_Connection_Test_Mode",
+
+# 7.7 HCI Events (see hci_evt.py)
+
+# 7.8 LE Commands (OGF = 0x08)
         0x2001 : "COMND LE_Set_Event_Mask",
         0x2002 : "COMND LE_Read_Buffer_Size",
         0x2003 : "COMND LE_Read_Local_Supported_Features",
@@ -222,12 +255,12 @@ HCI_COMMANDS = {
         0x200a : "COMND LE_Set_Advertise_Enable",
         0x200b : "COMND LE_Set_Set_Scan_Parameters",
         0x200c : "COMND LE_Set_Scan_Enable",
-        0x200d : "COMND LE_Create_Connection",
+        0x200d : "COMND LE_Create_Connection",            # 2, 2, 1, 1, peer address (6), 1, 2, 2, 2, 2, 2, 2
         0x200e : "COMND LE_Create_Connection_Cancel ",
         0x200f : "COMND LE_Read_White_List_Size",
         0x2010 : "COMND LE_Clear_White_List",
-        0x2011 : "COMND LE_Add_Device_To_White_List",
-        0x2012 : "COMND LE_RemoveDevice_From_White_List",
+        0x2011 : "COMND LE_Add_Device_To_White_List",     # 1, address (6)
+        0x2012 : "COMND LE_RemoveDevice_From_White_List", # 1, address (6)
         0x2013 : "COMND LE_Connection_Update",
         0x2014 : "COMND LE_Set_Host_Channel_Classification",
         0x2015 : "COMND LE_Read_Channel_Map",
@@ -243,6 +276,8 @@ HCI_COMMANDS = {
         0x201f : "COMND LE_Test_End",
         0x2020 : "COMND LE_Remote_Connection_Parameter_Request_Reply",
         0x2021 : "COMND LE_Remote_Connection_Parameter_Request_Negative_Reply",
+
+# Vendor Specific Commands
         0xfc7e : "COMND VSC_Write_Dynamic_SCO_Routing_Change",
         0xfc57 : "COMND VSC_Write_High_Priority_Connection",
         0xfc4c : "COMND VSC_Write_RAM",
@@ -261,6 +296,38 @@ HCI_COMMANDS = {
         0xfd59 : "COMND VSC_BLE_ENERGY_INFO"
     }
 
+
+"""
+In reality, the bits are stored as follows, where G = an OGF bit and C = an OCF bit.
+
+    GGGG GGCC CCCC CCCC
+
+Thus...
+- To recover the OGF, shift right by 10 bits, then appliy a 6-bit mask
+- To recover the OCF, apply a 10-bit mask
+
+"""
+OPCODE_OGF_MASK = 0x003f # 0000 0000 0011 1111 --- grap (upper) 6 bits for OGF
+OPCODE_OCF_MASK = 0x03ff # 1111 1111 1100 0000 --- grap (lower) 10 bits for OCF
+
+def parse_opcode(opcode):
+    """
+    The HCI Command OpCode consists of two parts: the OGF and OCF.
+
+    Use the corresponding masks (OPCODE_OGF_MASK, OPCODE_OCF_MASK) to obtain the approriate bits.
+    """
+    ogf = (opcode >> 10) & OPCODE_OGF_MASK
+    ocf = opcode & OPCODE_OGF_MASK
+
+    opcode_str = "0x{:04x}".format( opcode )
+    opcode_ogf_str = "0x{:02x}".format( ogf )
+    opcode_ocf_str = "0x{:04x}".format( ocf )
+
+    # print(f'[[parse_opcode(opcode)]] opcode={opcode} {bin(opcode)} // opcode_str={opcode_str}, opcode_ogf_str={opcode_ogf_str}, opcode_ocf_str={opcode_ocf_str}')
+
+    return ((opcode_str, opcode_ogf_str, opcode_ocf_str), (opcode, ogf, ocf))
+
+
 def parse(data):
     """
     Parse HCI command
@@ -274,14 +341,13 @@ def parse(data):
 
     Returns a tuple of (opcode, length, data)
     """
-    opcode, length = struct.unpack("<HB", data[:3])
-    data = data[3:]
-    return opcode, length, data
+    hdr = CMD_HEADER()
+    hdr.asbyte = struct.unpack("<HB", data[:3])[0]
+    opcode = int(hdr.b.opcode)
+    length = int(hdr.b.length)
 
-def get_cmds(records):
-	hci_uarts = map(lambda record: hci_uart.parse(record[4]), records)
-	hci_cmds = filter(lambda hci_type, hci_data: hci_type == hci_uart.HCI_CMD, hci_uarts)
-	return map(lambda hci_type, hci_data: hci_cmd.parse(hci_data), hci_cmds)
+    return opcode, length, data[3:]
+
 
 def cmd_to_str(opcode):
     """
@@ -290,4 +356,4 @@ def cmd_to_str(opcode):
     if opcode in HCI_COMMANDS:
         return HCI_COMMANDS[opcode]
     else:
-        return "UNKNOWN OPCODE ({})".format(opcode)
+        return f"UNKNOWN OPCODE ({opcode})"

@@ -32,9 +32,9 @@ def parse_hdr(data):
     """
     Parse L2CAP packet
 
-     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 
+     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
     -----------------------------------------------------------------
-    |            length             |          channel id           |
+    |            length             |          channel id           | -> data .....
     -----------------------------------------------------------------
 
     L2CAP is packet-based but follows a communication model based on channels.
@@ -43,8 +43,8 @@ def parse_hdr(data):
     other than the L2CAP connectionless channel (CID 0x0002) and the two L2CAP
     signaling channels (CIDs 0x0001 and 0x0005) are considered connection-oriented.
 
-    All L2CAP layer packet fields shall use Little Endian byte order with the exception of the 
-    information payload field. The endian-ness of higher layer protocols encapsulated within 
+    All L2CAP layer packet fields shall use Little Endian byte order with the exception of the
+    information payload field. The endian-ness of higher layer protocols encapsulated within
     L2CAP information payload is protocol-specific
 
     References can be found here:
@@ -114,11 +114,19 @@ PKT_TYPE_PARSERS = { hci_acl.PB_START_NON_AUTO_L2CAP_PDU : parse_hdr,
                      hci_acl.PB_START_AUTO_L2CAP_PDU : parse_hdr,
                      hci_acl.PB_COMPLETE_L2CAP_PDU : parse_hdr }
 
-
+# def parse(data):
 def parse(l2cap_pkt_type, data):
     """
     Convenience method for switching between parsing methods based on type
+
+    NOTE: Currently this only suports ACL related parsing....
     """
+    # l2cap_pkt_type = struct.unpack("<B", data[:1])[0]
+    # print(l2cap_pkt_type, data)
+    # length, cid, l2cap_pkt_data = parse_hdr(data)
+
+    assert(l2cap_pkt_type == 0)
+
     parser = PKT_TYPE_PARSERS[l2cap_pkt_type]
     if parser is None:
         raise ValueError("Illegal L2CAP packet type")
