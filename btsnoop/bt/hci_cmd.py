@@ -294,6 +294,7 @@ HCI_COMMANDS = {
         0xfd58 : "COMND VSC_BLE_TRACK_ADV",
         0xfd59 : "COMND VSC_BLE_ENERGY_INFO"
     }
+INV_HCI_COMMANDS_LOOKUP = dict(map(reversed, HCI_COMMANDS.items()))
 
 """
 More Specific Parsing Routines.
@@ -325,14 +326,7 @@ def parse_opcode(opcode):
     """
     ogf = (opcode >> 10) & OPCODE_OGF_MASK
     ocf = opcode & OPCODE_OGF_MASK
-
-    opcode_str = "0x{:04x}".format( opcode )
-    opcode_ogf_str = "0x{:02x}".format( ogf )
-    opcode_ocf_str = "0x{:04x}".format( ocf )
-
-    # print(f'[[parse_opcode(opcode)]] opcode={opcode} {bin(opcode)} // opcode_str={opcode_str}, opcode_ogf_str={opcode_ogf_str}, opcode_ocf_str={opcode_ocf_str}')
-
-    return ((opcode_str, opcode_ogf_str, opcode_ocf_str), (opcode, ogf, ocf))
+    return (opcode, ogf, ocf)
 
 
 def parse(data):
