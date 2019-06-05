@@ -3,10 +3,11 @@ Parse HCI Commands
 """
 
 import struct
-from . import hci_uart
+from . import hci
 
 import ctypes
-from ctypes import c_uint
+# from ctypes import c_uint
+from ctypes import *
 
 
 """
@@ -24,12 +25,10 @@ OpCode is 2 bytes, of which OGF is the upper 6 bits and OCF is the lower 10 bits
 
 class CMD_HEADER_BITS( ctypes.LittleEndianStructure ):
     _fields_ = [("opcode",  c_uint,  16),
-                ("length",  c_uint,  8)]
+                ("length",  c_uint,  8),
+                ("xx",      c_uint,  8)]
 
 class CMD_HEADER( ctypes.Union ):
-    """
-    This is a trick for converting bitfields to separate values
-    """
     _fields_ = [("b", CMD_HEADER_BITS),
                 ("asbyte", c_uint)]
 
@@ -296,6 +295,14 @@ HCI_COMMANDS = {
         0xfd59 : "COMND VSC_BLE_ENERGY_INFO"
     }
 
+"""
+More Specific Parsing Routines.
+
+This code is primarily interested in extracting information from within HCI Command packets.
+-> Information provided from the HOST to the CONTROLLER (or remote peer device)
+
+This is a work in progress.
+"""
 
 """
 In reality, the bits are stored as follows, where G = an OGF bit and C = an OCF bit.
@@ -341,11 +348,13 @@ def parse(data):
 
     Returns a tuple of (opcode, length, data)
     """
-    hdr = CMD_HEADER()
-    hdr.asbyte = struct.unpack("<HB", data[:3])[0]
-    opcode = int(hdr.b.opcode)
-    length = int(hdr.b.length)
+    # hdr = CMD_HEADER()
+    # hdr.asbyte = struct.unpack("<3B", data[:3])[0] # NOTE: needs to be a single format - grab 4 bytes; use what you need
+    # opcode = int(hdr.b.opcode)
+    # length = int(hdr.b.length)
 
+    opcode, length = struct.unpack("<HB", data[:3])
+    # print(f'CMD::{struct.unpack("<HB", data[:3])}', opcode, length)
     return opcode, length, data[3:]
 
 

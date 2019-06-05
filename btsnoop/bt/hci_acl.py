@@ -70,6 +70,9 @@ def parse(data):
     pb = int(hdr.b.pb)
     bc = int(hdr.b.bc)
     length = int(hdr.b.length)
+
+    # print(f'ACL::{struct.unpack("<BB", data[:2])}', handle, pb, bc, length)
+
     return (handle, pb, bc, length, data[4:])
 
 
