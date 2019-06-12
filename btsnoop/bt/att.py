@@ -41,6 +41,7 @@ ATT_PDUS = {
         0x1D : "ATT Handle_Value_Indication",
         0x1E : "ATT Handle_Value_Confirmation"
     }
+INV_ATT_PDUS_LOOKUP = dict(map(reversed, ATT_PDUS.items()))
 
 
 def parse(data):
