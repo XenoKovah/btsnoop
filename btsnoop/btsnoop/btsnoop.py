@@ -1,14 +1,14 @@
 """
 Parse btsnoop_hci.log binary data (similar to wireshark)
 usage:
- ./parse.py <filename>
+    ./btsnoop.py <filename>
 
 References:
     bluez/src/shared/btsnoop.h
     bluez/src/shared/btsnoop.c
     bluez/android/bluetoothd-snoop.c
 
-NOTE: As of bluez v5.50, the "android/blutoothd-snoop.c" code indicates a different btsnoop format (BTSNOOP_FORMAT_HCI). 
+NOTE: As of bluez v5.50, the "android/blutoothd-snoop.c" code indicates a different btsnoop format (BTSNOOP_FORMAT_HCI).
 NOTE: When using btmon to capture a btsnoop file, it too uses a different format (appears to be BTSNOOP_FORMAT_MONITOR).
 --> Need to add support for these in the future...
 """
@@ -317,7 +317,8 @@ def print_hdr():
 
 def main(filename):
     records = parse(filename)
-    print(records)
+    for record in records:
+        print(record)
     return 0
 
 
