@@ -1,11 +1,34 @@
 """
-  Parse btsnoop_hci.log binary data (similar to wireshark)
-  usage:
-     ./parse.py <filename>
+Parse btsnoop_hci.log binary data (similar to wireshark)
+usage:
+ ./parse.py <filename>
+
+References:
+    bluez/src/shared/btsnoop.h
+    bluez/src/shared/btsnoop.c
+    bluez/android/bluetoothd-snoop.c
+
+NOTE: As of bluez v5.50, the "android/blutoothd-snoop.c" code indicates a different btsnoop format (BTSNOOP_FORMAT_HCI). 
+NOTE: When using btmon to capture a btsnoop file, it too uses a different format (appears to be BTSNOOP_FORMAT_MONITOR).
+--> Need to add support for these in the future...
 """
+
+
 import datetime
 import sys
 import struct
+
+
+"""
+From bluez/src/shared/btsnoop.h (v5.50), btsnoop format values:
+"""
+BTSNOOP_FORMAT_INVALID   = 0
+BTSNOOP_FORMAT_HCI       = 1001
+BTSNOOP_FORMAT_UART      = 1002  # << this module currently only supports this format
+BTSNOOP_FORMAT_BCSP      = 1003
+BTSNOOP_FORMAT_3WIRE     = 1004
+BTSNOOP_FORMAT_MONITOR   = 2001
+BTSNOOP_FORMAT_SIMULATOR = 2002
 
 
 """
@@ -23,6 +46,48 @@ BTSNOOP_FLAGS = {
         2 : ("host", "controller", "command"),
         3 : ("controller", "host", "event")
     }
+
+
+def flags_to_str(flags):
+    """
+    Returns a tuple of (src, dst, type)
+    """
+    assert flags in [0,1,2,3]
+    return BTSNOOP_FLAGS[flags]
+
+
+def flags_to_direction(flags):
+    """
+    Returns a str indicating the direction of the packet (H2C or C2H)
+    """
+    assert flags in [0,1,2,3]
+    if flags in [0,2]:
+        return ">" # host->controller (or h2d?)
+    elif flags in [1, 3]:
+        return "<" # controller->host (or d2h?)
+
+
+def h2d(flags):
+    assert flags in [0,1,2,3]
+    if flags in [0,2]:
+        return 1
+    elif flags in [1, 3]: # device-to-host (i.e., controller-to-host)
+        return 0
+    raise BaseException('h2d error')
+
+
+def _parse_time(time):
+    """
+    Record time is a 64-bit signed integer representing the time of packet arrival,
+    in microseconds since midnight, January 1st, 0 AD nominal Gregorian.
+
+    In order to avoid leap-day ambiguity in calculations, note that an equivalent
+    epoch may be used of midnight, January 1st 2000 AD, which is represented in
+    this field as 0x00E03AB44A676000.
+    """
+    time_betw_0_and_2000_ad = int("0x00E03AB44A676000", 16)
+    time_since_2000_epoch = datetime.timedelta(microseconds=time) - datetime.timedelta(microseconds=time_betw_0_and_2000_ad)
+    return datetime.datetime(2000, 1, 1) + time_since_2000_epoch
 
 
 def parse(filename, zero_based_index=False):
@@ -61,16 +126,32 @@ def parse(filename, zero_based_index=False):
     with open(filename, "rb") as f:
         # Validate file header
         (identification, version, type) = _read_file_header(f)
-        identification = identification.decode('utf-8')
-        _validate_file_header(identification, version, type)
 
-        # Not using the following data:
-        # record[1] - original length
-        # record[4] - cumulative drops
-        rmap = map(lambda record:
-            (record[0], record[2], record[3], _parse_time(record[5]), record[6]),
-            _read_packet_records(f, zero_based_index))
-        return list(rmap) ### explictly convert map to list object; python2->python3
+        # is this a btsnoop file?
+        identification = identification.decode('utf-8')
+        if (identification == "btsnoop\0"):
+
+            _validate_btsnoop_file_header(identification, version, type)
+
+            # Not using the following data:
+            # record[1] - original length
+            # record[4] - cumulative drops
+            rmap = map(lambda record:
+                (record[0], record[2], record[3], _parse_time(record[5]), record[6]),
+                _read_btsnoop_packet_records(f, zero_based_index))
+            return list(rmap) ### explictly convert map to list object; python2->python3
+
+        else:  # nope.... try Apple PacketLogger Format?
+            pklg_version2 = (identification[1] == 0x01)
+
+            # Validate and rewind because PacketLogger files have no file header
+            _validate_packetlogger_file(identification)
+            f.seek(0)
+            rmap = map(lambda record:
+                (record[0], record[1], record[2], record[3], record[4]),
+                _read_packetlogger_records(f, pklg_version2))
+            return list(rmap) ### explictly convert map to list object; python2->python3
+
 
 def _read_file_header(f):
     """
@@ -80,7 +161,7 @@ def _read_file_header(f):
     | identification pattern|
     | 8 bytes                              |
     ----------------------------------------
-    | version number                   |
+    | version number                       |
     | 4 bytes                              |
     ----------------------------------------
     | data link type = HCI UART (H4)       |
@@ -94,7 +175,7 @@ def _read_file_header(f):
     return (ident, version, data_link_type)
 
 
-def _validate_file_header(identification, version, data_link_type):
+def _validate_btsnoop_file_header(identification, version, data_link_type):
     """
     The identification pattern should be:
         'btsnoop\0'
@@ -102,24 +183,28 @@ def _validate_file_header(identification, version, data_link_type):
     The version number should be:
         1
 
-    The data link type can be:
-        - Reserved	0 - 1000
-        - Un-encapsulated HCI (H1)	1001
+    The data link type should be: (see other formats noted above; TODO: add support for more formats)
         - HCI UART (H4)	1002
-        - HCI BSCP	1003
-        - HCI Serial (H5)	1004
-        - Unassigned	1005 - 4294967295
 
     For SWAP, data link type should be:
         HCI UART (H4)	1002
     """
+    # print(f'_validate_btsnoop_file_header( identification={identification}, version={version}, data_link_type={data_link_type} )')
     assert identification == "btsnoop\0"
     assert version == 1
-    assert data_link_type == 1002
-    print("Btsnoop capture file version {0}, type {1}".format(version, data_link_type))
+    assert data_link_type == BTSNOOP_FORMAT_UART
+    print(f'btsnoop capture file version {version}, type {data_link_type}')
 
 
-def _read_packet_records(f, zero_based_index=False):
+def _validate_packetlogger_file(identification):
+    """
+    Check for Apple PacketLoger format
+    Adopted from https://github.com/regnirof/hciparse/blob/8a5575b8f74462bd7d5a342885b458e212a77d76/hciparse/logparse/logparse.py
+    """
+    assert (identification[0] != 0x00 or (identification[1] != 0x00 and identification[1] != 0x01))
+
+
+def _read_btsnoop_packet_records(f, zero_based_index=False):
     """
     A record should confirm to the following format
 
@@ -164,50 +249,63 @@ def _read_packet_records(f, zero_based_index=False):
         seq_nbr += 1
 
 
-def _parse_time(time):
+def _read_packetlogger_records(f, pklg_version2, zero_based_index=False):
     """
-    Record time is a 64-bit signed integer representing the time of packet arrival,
-    in microseconds since midnight, January 1st, 0 AD nominal Gregorian.
-
-    In order to avoid leap-day ambiguity in calculations, note that an equivalent
-    epoch may be used of midnight, January 1st 2000 AD, which is represented in
-    this field as 0x00E03AB44A676000.
+    Adopted from https://github.com/regnirof/hciparse/blob/8a5575b8f74462bd7d5a342885b458e212a77d76/hciparse/logparse/logparse.py
     """
-    time_betw_0_and_2000_ad = int("0x00E03AB44A676000", 16)
-    time_since_2000_epoch = datetime.timedelta(microseconds=time) - datetime.timedelta(microseconds=time_betw_0_and_2000_ad)
-    return datetime.datetime(2000, 1, 1) + time_since_2000_epoch
 
+    seq_nbr = 1
+    if zero_based_index:
+        seq_nbr = 0
 
-def flags_to_str(flags):
-    """
-    Returns a tuple of (src, dst, type)
-    """
-    assert flags in [0,1,2,3]
-    return BTSNOOP_FLAGS[flags]
+    while True:
+        # PacketLogger packet should be 4 byte len, 8 byte timestamp, 1 byte type
+        pkt = f.read(4 + 8 + 1)
+        if len(pkt) != 13:
+            break
+        # PKLGv2 files are little endian
+        if pklg_version2:
+            length, timestamp, pkt_type = struct.unpack("<IqB", pkt)
+        else:
+            length, timestamp, pkt_type = struct.unpack(">IqB", pkt)
 
+        data = f.read(length - (13 - 4))
 
-def flags_to_direction(flags):
-    """
-    Returns a str indicating the direction of the packet (H2C or C2H)
-    """
-    assert flags in [0,1,2,3]
-    if flags in [0,2]:
-        return ">" # host->controller (or h2d?)
-    elif flags in [1, 3]:
-        return "<" # controller->host (or d2h?)
+        # This is not very clear, but the PacketLogger flags are different so we
+        # translate them to the btsnoop flags. Also there are some special types
+        # we don't care about so we drop those packets. To complicate things
+        # further, it seems that PacketLogger doesn't specify the UART type but
+        # this library depends on it, so we forge that
 
-def h2d(flags):
-    assert flags in [0,1,2,3]
-    if flags in [0,2]:
-        return 1
-    elif flags in [1, 3]: # device-to-host (i.e., controller-to-host)
-        return 0
-    raise BaseException('h2d error')
+        # CMD
+        if pkt_type == 0x00:
+            pkt_type = 0x02
+            uart_type = 0x01
+        # EVT
+        elif pkt_type == 0x01:
+            pkt_type = 0x03
+            uart_type = 0x04
+        # ACL TX
+        elif pkt_type == 0x02:
+            pkt_type = 0x00
+            uart_type = 0x02
+        #ACL RX
+        elif pkt_type == 0x03:
+            pkt_type = 0x01
+            uart_type = 0x02
+        else:
+            continue
+
+        data = struct.pack('B',uart_type) + data
+
+        secs = timestamp >> 32
+        usecs = timestamp & 0xffffffff
+        timestamp = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=secs, microseconds=usecs)
+        yield (seq_nbr, length, pkt_type, timestamp, data)
+        seq_nbr += 1
+
 
 def print_hdr():
-    """
-    Print the script header
-    """
     print("""
 ##############################
 #                            #
