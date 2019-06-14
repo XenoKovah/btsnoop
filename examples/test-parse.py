@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# TODO: I'd like to make this script python3 compatible...
+#!/usr/bin/env python3
 
 from __future__ import print_function
 
@@ -103,10 +102,16 @@ def get_rows(records):
         else:
             raise Exception('Unknown HCI Packet Type!')
 
+        # data = binascii.hexlify(data)
         data = binascii.hexlify(data)
-        data = len(data) > 50 and data[:50] + "..." + " ({} more bytes)".format(len(data)-50) or data
+        if len(data) > 50:
+            hex_data = f'{data[:50]}... ({len(data)-50} more bytes)'
+        else:
+            hex_data = data
 
-        rows.append([seq_nbr, time, hci, direction, cmd_evt_l2cap, data])
+        # hex_data = len(hex_data) > 50 and hex_data[:50] + "..." + " ({} more bytes)".format(len(hex_data)-50) or hex_data
+
+        rows.append([seq_nbr, time, hci, direction, cmd_evt_l2cap, hex_data])
 
     return rows
 
@@ -134,10 +139,5 @@ if __name__ == "__main__":
         main(sys.argv[1])
     else:
         print("You need to give me a btsnoop log file to parse :)")
-        print("\nRunning w/ Default Example:")
-        DEFAULT_FILE = "../../data/INPUTS/btsnoop_hci_normal_trace_sample001.log"
-        print("  ./test-parse.py", DEFAULT_FILE, "\n")
-
-        main(DEFAULT_FILE)
-
-        sys.exit(-1)
+        print("\nFor example:")
+        print("\tpython test-parse.py ../../../data/INPUTS/btsnoop_hci_normal_trace_sample001.log\n")
