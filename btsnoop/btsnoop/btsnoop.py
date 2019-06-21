@@ -90,7 +90,7 @@ def _parse_time(time):
     return datetime.datetime(2000, 1, 1) + time_since_2000_epoch
 
 
-def parse(filename, zero_based_index=False):
+def parse(filename, verbose=True, zero_based_index=False):
     """
     Parse a Btsnoop packet capture file.
 
@@ -131,7 +131,7 @@ def parse(filename, zero_based_index=False):
         identification = identification.decode('utf-8')
         if (identification == "btsnoop\0"):
 
-            _validate_btsnoop_file_header(identification, version, type)
+            _validate_btsnoop_file_header(identification, version, type, verbose)
 
             # Not using the following data:
             # record[1] - original length
@@ -175,7 +175,7 @@ def _read_file_header(f):
     return (ident, version, data_link_type)
 
 
-def _validate_btsnoop_file_header(identification, version, data_link_type):
+def _validate_btsnoop_file_header(identification, version, data_link_type, verbose):
     """
     The identification pattern should be:
         'btsnoop\0'
@@ -193,7 +193,8 @@ def _validate_btsnoop_file_header(identification, version, data_link_type):
     assert identification == "btsnoop\0"
     assert version == 1
     assert data_link_type == BTSNOOP_FORMAT_UART
-    print(f'btsnoop capture file version {version}, type {data_link_type}')
+    if verbose:
+        print(f'btsnoop capture file version {version}, type {data_link_type}')
 
 
 def _validate_packetlogger_file(identification):

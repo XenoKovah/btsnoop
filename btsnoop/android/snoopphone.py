@@ -39,8 +39,9 @@ class SnoopPhone(Phone):
                 print(f"{self.prefix}dst wasn't set; set dst = {dst}")
 
         ret = super(SnoopPhone, self).pull(btsnoop_path, dst, a_mode, verbose=self.verbose)
-        if ret[0] == 0: #SUCCESS 
-            print(f"{self.prefix}{ret[1].decode('utf-8')} -> {dst}")
+        if ret[0] == 0: #SUCCESS
+            if self.verbose:
+                print(f"{self.prefix}{ret[1].decode('utf-8')} -> {dst}")
             return dst
         else:
             return None
