@@ -65,8 +65,11 @@ def i2h(val, leading0x=True, nbytes=1):
         if type(val) == bytes:
             val = BitArray(val)
             val = val.int
-
-
+            # try:
+            #     val = val.int
+            # except:
+            #     print('VALERROR???', val)
+            #     val = 0
         hexstr = f'0x{val:0>{nbytes*2}x}' # 1byte = XX, 2bytes = XX XX, etc.
         if leading0x:
             return hexstr

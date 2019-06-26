@@ -33,7 +33,7 @@ def parse(data):
     -----------------
     |      code     |
     -----------------
-    
+
     References can be found here:
         * https://www.bluetooth.org/en-us/specification/adopted-specifications - Core specification 4.1
         ** [vol 3] Part H (Section 3.3) - Command Format
@@ -43,8 +43,12 @@ def parse(data):
     code = struct.unpack("<B", data[:1])[0]
     return (code, data[1:])
 
-def code_to_str(code):
+def opcode_to_str(code, verbose=False):
     """
     Return a string representing the SMP code
     """
-    return SMP_PDUS[code]
+    if code in SMP_PDUS:
+        opstr = f' [code={hci.i2h(code)} ({code})]' if verbose else ''
+        return f'{SMP_PDUS[code]}{opstr}'
+    else:
+        return f"UNKNOWN CODE ({code})"

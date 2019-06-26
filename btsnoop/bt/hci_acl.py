@@ -5,7 +5,6 @@ import struct
 import ctypes
 from ctypes import c_uint
 
-
 """
 ACL handle is 12 bits, followed by 2 bits packet boundary flags and 2
 bits broadcast flags.
@@ -53,6 +52,13 @@ PB_FLAGS = {
         PB_COMPLETE_L2CAP_PDU : "ACL_PB COMPLETE_L2CAP_PDU"
     }
 
+def pb_to_str(pb):
+    """
+    Return a string representing the packet boundary flag
+    """
+    assert pb in [0, 1, 2, 3]
+    return PB_FLAGS[pb]
+
 
 def parse(data):
     """
@@ -70,15 +76,5 @@ def parse(data):
     pb = int(hdr.b.pb)
     bc = int(hdr.b.bc)
     length = int(hdr.b.length)
-
     # print(f'ACL::{struct.unpack("<BB", data[:2])}', handle, pb, bc, length)
-
     return (handle, pb, bc, length, data[4:])
-
-
-def pb_to_str(pb):
-    """
-    Return a string representing the packet boundary flag
-    """
-    assert pb in [0, 1, 2, 3]
-    return PB_FLAGS[pb]

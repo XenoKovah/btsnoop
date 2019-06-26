@@ -188,6 +188,18 @@ LINK_TYPES = {
     } # 0x03-0xFF Reserved for future use.
 
 
+def e2s(evtcode, subevtcode, verbose=False):
+    """
+    Return a string representing the event code
+    Return a string representing the subevent code (for LE events)
+    """
+    s = ''
+    if evtcode in HCI_EVENTS:
+        s += f'{HCI_EVENTS[evtcode]} (0x{evtcode:02x}) '
+    if subevtcode in HCI_LE_META_EVENTS:
+        s += f'{HCI_LE_META_EVENTS[subevtcode]} (0x{subevtcode:02x})'
+    return s
+
 def evt_to_str(evtcode):
     """
     Return a string representing the event code

@@ -14,7 +14,6 @@ ACL_DATA = 0x02
 SCO_DATA = 0x03
 HCI_EVT  = 0x04
 
-
 HCI_UART_PKT_TYPES = {
     HCI_CMD  : "HCI_CMD",
     ACL_DATA : "ACL_DATA",
@@ -26,7 +25,7 @@ def type_to_str(pkt_type):
     """
     Return a string representing the HCI packet type.
     """
-    assert pkt_type in [HCI_CMD, ACL_DATA, SCO_DATA, HCI_EVT]
+    assert pkt_type in HCI_UART_PKT_TYPES
     return HCI_UART_PKT_TYPES[pkt_type]
 
 def parse(data):
@@ -48,4 +47,5 @@ def parse(data):
     Returns a tuple (pkt_type, data) with the HCI type and data.
     """
     pkt_type = struct.unpack("<B", data[:1])[0]
+    assert pkt_type in HCI_UART_PKT_TYPES
     return ( pkt_type, data[1:] )

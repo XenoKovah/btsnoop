@@ -2,14 +2,14 @@
 Parse L2CAP packets
 """
 import struct
-from . import hci
-from . import hci_acl
-
-from .wrappers import *
-
 from dataclasses import dataclass
 from bitstring import BitStream, BitArray
 
+from . import hci
+from . import hci_acl
+from . import att
+
+from . import wrappers as pkts
 
 """
 Fixed Channel IDs (CIDs) for L2CAP packets
@@ -40,15 +40,21 @@ L2CAP_CID_AMP_TEST_MGR = 0x003F  # AMP Test Manager protocol
 # 0x0080-0xFFFF reserved
 
 L2CAP_CHANNEL_IDS = {
-        L2CAP_CID_NUL       : "L2CAP CID_NUL",
-        L2CAP_CID_SCH       : "L2CAP CID_SCH",
-        L2CAP_CID_CONNLESS  : "L2CAP CID_CONNECTIONLESS",
-        L2CAP_CID_AMP_MGR   : "L2CAP L2CAP_CID_AMP_MGR",
-        L2CAP_CID_LE_ATT    : "L2CAP CID_ATT",
-        L2CAP_CID_LE_SCH    : "L2CAP CID_LE_SCH",
-        L2CAP_CID_LE_SMP    : "L2CAP CID_LE_SMP",
-        L2CAP_CID_SMP : "L2CAP CID_SMP"
+    L2CAP_CID_NUL       : "L2CAP CID_NUL",
+    L2CAP_CID_SCH       : "L2CAP CID_SCH",
+    L2CAP_CID_CONNLESS  : "L2CAP CID_CONNECTIONLESS",
+    L2CAP_CID_AMP_MGR   : "L2CAP L2CAP_CID_AMP_MGR",
+    L2CAP_CID_LE_ATT    : "L2CAP CID_ATT",
+    L2CAP_CID_LE_SCH    : "L2CAP CID_LE_SCH",
+    L2CAP_CID_LE_SMP    : "L2CAP CID_LE_SMP",
+    L2CAP_CID_SMP       : "L2CAP CID_SMP"
 }
+
+def cid_to_str(cid):
+    """
+    Return a string representing the L2CAP channel id
+    """
+    return L2CAP_CHANNEL_IDS[cid]
 
 """
 Assigned Numbers are used in the Logical Link Control for protocol/service multiplexers.
@@ -137,6 +143,15 @@ L2CAP_SCH_PDUS = {
     }
 INV_L2CAP_SCH_PDUS = dict(map(reversed, L2CAP_SCH_PDUS.items()))
 
+def sch_code_to_str(code, verbose=False):
+    """
+    Return a string representing the signaling channel PDU
+    """
+    if code in L2CAP_SCH_PDUS:
+        opstr = f' [code={hci.i2h(code)} ({code})]' if verbose else ''
+        return f'{L2CAP_SCH_PDUS[code]}{opstr}'
+    else:
+        return f"UNKNOWN CODE ({code})"
 
 def parse_sch_data(code, id, data):
     """
@@ -156,7 +171,6 @@ def parse_sch_data(code, id, data):
         return L2CAPCreateChannelRequest(code, id, data[0:2], data[2:4], data[4])
     elif code == INV_L2CAP_SCH_PDUS["SCH Create_Channel_Response"]:
         return L2CAPCreateChannelResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
-
 
 def parse_sch(l2cap_data):
     """
@@ -185,6 +199,23 @@ PKT_TYPE_PARSERS = { hci_acl.PB_START_NON_AUTO_L2CAP_PDU : parse_hdr,
                      hci_acl.PB_START_AUTO_L2CAP_PDU : parse_hdr,
                      hci_acl.PB_COMPLETE_L2CAP_PDU : parse_hdr }
 
+def parse_l2cap_data(l2cap_len, l2cap_cid, l2cap_data):
+
+    if l2cap_cid == L2CAP_CID_LE_ATT:
+        att_opcode, att_data = att.parse(l2cap_data)
+        att_handle = BitArray(att_data)[0:16] # select 1st two bytes (=16 bits)
+        att_handle.byteswap([0,2], repeat=False) # need to swap first two bytes
+        att_payload = BitArray(att_data)[16:] # leave byte-order alone in payload?
+        return pkts.ATT(att_opcode, att_handle, att_payload, att_data)
+
+    elif l2cap_cid == L2CAP_CID_SMP:
+        smp_code, smp_data = smp.parse(l2cap_data)
+        return pkts.SMP(smp_code, smp_data)
+
+    elif l2cap_cid == L2CAP_CID_SCH or l2cap_cid == L2CAP_CID_LE_SCH:
+        sch_code, sch_id, sch_length, sch_data = parse_sch(l2cap_data)
+        return pkts.SCH(sch_code, sch_id, sch_length, sch_data)
+
 # def parse(data):
 def parse(l2cap_pkt_type, data):
     """
@@ -202,17 +233,3 @@ def parse(l2cap_pkt_type, data):
     if parser is None:
         raise ValueError("Illegal L2CAP packet type")
     return parser(data)
-
-
-def cid_to_str(cid):
-    """
-    Return a string representing the L2CAP channel id
-    """
-    return L2CAP_CHANNEL_IDS[cid]
-
-
-def sch_code_to_str(code):
-    """
-    Return a string representing the signaling channel PDU
-    """
-    return L2CAP_SCH_PDUS[code]

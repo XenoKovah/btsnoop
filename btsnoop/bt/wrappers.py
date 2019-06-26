@@ -3,10 +3,14 @@ This module contains a number of data classes that are intended to
 make unpacking snooped packet information easy and portable.
 """
 
-from . import hci
-
 from dataclasses import dataclass
 from bitstring import BitStream, BitArray
+
+from . import hci
+from . import l2cap
+from . import att
+from . import smp
+
 
 """
 --------------------------------------------------------------------------------
@@ -190,7 +194,7 @@ class EventLEConnectionUpdateComplete:
     rawbytes: str
 
     def __post_init__(self):
-        assert(len(self.rawbytes) == 8)
+        assert(len(self.rawbytes) == 9)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.rawbytes = hci.bytes2hexstr(self.rawbytes)
 
@@ -307,3 +311,42 @@ class L2CAPCreateChannelResponse:
         self.scid = hci.pkt_bytes_to_l2cap_cid(self.scid)
         self.result = hci.i2h(self.result, nbytes=2)
         self.status = hci.i2h(self.status, nbytes=2)
+
+"""
+--------------------------------------------------------------------------------
+                          ATT/SMP/SCH Packets
+--------------------------------------------------------------------------------
+"""
+
+@dataclass
+class ATT:
+    opcode: str
+    hndl: str
+    payload: str
+    data: str
+    opcodestr: str = None
+
+    def __post_init__(self):
+        self.opcodestr = att.opcode_to_str(self.opcode, verbose=True)
+
+@dataclass
+class SMP:
+    code: str
+    data: str
+    codestr: str = None
+
+    def __post_init__(self):
+        self.codestr = smp.code_to_str(self.code, verbose=True)
+
+@dataclass
+class SCH:
+    code: str
+    id: str
+    len: str
+    data: str
+    codestr: str = None
+    l2cap_sch_evt: str = None
+
+    def __post_init__(self):
+        self.codestr = l2cap.sch_code_to_str(self.code, verbose=True)
+        self.l2cap_sch_evt = l2cap.parse_sch_data(self.code, self.id, self.data)

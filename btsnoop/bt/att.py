@@ -3,6 +3,7 @@ Parse ATT packets
 """
 import struct
 
+from . import hci
 
 """
 ATT PDUs
@@ -67,9 +68,12 @@ def parse(data):
     opcode = struct.unpack("<B", data[:1])[0]
     return (opcode, data[1:])
 
-
-def opcode_to_str(opcode):
+def opcode_to_str(opcode, verbose=False):
     """
     Return a string representing the ATT PDU opcode
     """
-    return ATT_PDUS[opcode]
+    if opcode in ATT_PDUS:
+        opstr = f' [opcode={hci.i2h(opcode)} ({opcode})]' if verbose else ''
+        return f'{ATT_PDUS[opcode]}{opstr}'
+    else:
+        return f"UNKNOWN OPCODE ({opcode})"
