@@ -2,7 +2,13 @@
 Parse L2CAP packets
 """
 import struct
+from . import hci
 from . import hci_acl
+
+from .wrappers import *
+
+from dataclasses import dataclass
+from bitstring import BitStream, BitArray
 
 
 """
@@ -106,29 +112,50 @@ DCID = Destination CID
 SCID = Source CID
 """
 L2CAP_SCH_PDUS = {
-        0x01 : "SCH Command reject",
-        0x02 : "SCH Connection request",  # PSM, SCID (device sending request)
-        0x03 : "SCH Connection response", # DCID (device sending response), SCID (device that sent request), Result (success, pending, refused, etc.), Status
-        0x04 : "SCH Configure request",
-        0x05 : "SCH Configure response",
-        0x06 : "SCH Disconnection request", # DCID (device receiving the request), SCID (device sending the request)
-        0x07 : "SCH Disconnection response", # DCID (device sending the response), SCID (device receiving the reponse)
-        0x08 : "SCH Echo request",
-        0x09 : "SCH Echo response",
-        0x0a : "SCH Information request",
-        0x0b : "SCH Information response",
-        0x0c : "SCH Create Channel request", # PSM, SCID (device sending request), Controller ID (ID for controller physical link)
-        0x0d : "SCH Create Channel response", # DCID (device sending this response), SCID (device that sent initial request)
-        0x0e : "SCH Move Channel request",
-        0x0f : "SCH Move Channel response",
-        0x10 : "SCH Move Channel Confirmation",
-        0x11 : "SCH Move Channel Confirmation response",
-        0x12 : "LE SCH Connection_Parameter_Update_Request",
-        0x13 : "LE SCH Connection_Parameter_Update_Response",
-        0x14 : "LE SCH LE_Credit_Based_Connection Request",
-        0x15 : "LE SCH LE_Credit_Based_Connection Response",
-        0x16 : "LE SCH LE_Flow_Control_Credit",
+        0x01 : "SCH Command_Reject",
+        0x02 : "SCH Connection_Request",  # PSM, SCID (device sending request)
+        0x03 : "SCH Connection_Response", # DCID (device sending response), SCID (device that sent request), Result (success, pending, refused, etc.), Status
+        0x04 : "SCH Configure_Request",
+        0x05 : "SCH Configure_Response",
+        0x06 : "SCH Disconnection_Request", # DCID (device receiving the request), SCID (device sending the request)
+        0x07 : "SCH Disconnection_Response", # DCID (device sending the response), SCID (device receiving the reponse)
+        0x08 : "SCH Echo_Request",
+        0x09 : "SCH Echo_Response",
+        0x0a : "SCH Information_Request",
+        0x0b : "SCH Information_Response",
+        0x0c : "SCH Create_Channel_Request", # PSM, SCID (device sending request), Controller ID (ID for controller physical link)
+        0x0d : "SCH Create_Channel_Response", # DCID (device sending this response), SCID (device that sent initial request)
+        0x0e : "SCH Move_Channel_Request",
+        0x0f : "SCH Move_Channel_Response",
+        0x10 : "SCH Move_Channel_Confirmation",
+        0x11 : "SCH Move_Channel_Confirmation response",
+        0x12 : "SCH Connection_Parameter_Update_Request",
+        0x13 : "SCH Connection_Parameter_Update_Response",
+        0x14 : "LE SCH LE_Credit_Based_Connection_Request",
+        0x15 : "LE SCH LE_Credit_Based_Connection_Response",
+        0x16 : "LE SCH LE_Flow_Control_Credit"
     }
+INV_L2CAP_SCH_PDUS = dict(map(reversed, L2CAP_SCH_PDUS.items()))
+
+
+def parse_sch_data(code, id, data):
+    """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 3, Part A] page 57
+    """
+    if code == INV_L2CAP_SCH_PDUS["SCH Connection_Request"]:
+        return L2CAPConnectionRequest(code, id, data[0:2], data[2:4])
+    elif code == INV_L2CAP_SCH_PDUS["SCH Connection_Response"]:
+        return L2CAPConnectionResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
+
+    elif code == INV_L2CAP_SCH_PDUS["SCH Disconnection_Request"]:
+        return L2CAPDisconnectionRequest(code, id, data[0:2], data[2:4])
+    elif code == INV_L2CAP_SCH_PDUS["SCH Disconnection_Response"]:
+        return L2CAPDisconnectionResponse(code, id, data[0:2], data[2:4])
+
+    elif code == INV_L2CAP_SCH_PDUS["SCH Create_Channel_Request"]:
+        return L2CAPCreateChannelRequest(code, id, data[0:2], data[2:4], data[4])
+    elif code == INV_L2CAP_SCH_PDUS["SCH Create_Channel_Response"]:
+        return L2CAPCreateChannelResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
 
 
 def parse_sch(l2cap_data):

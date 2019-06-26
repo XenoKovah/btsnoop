@@ -6,9 +6,9 @@ import struct
 from . import hci
 
 import ctypes
-# from ctypes import c_uint
 from ctypes import *
 
+from .wrappers import *
 
 """
 OpCodes and names for HCI commands according to the Bluetooth specification.
@@ -252,10 +252,10 @@ HCI_COMMANDS = {
         0x2008 : "COMND LE_Set_Advertising_Data",
         0x2009 : "COMND LE_Set_Scan_Responce_Data",
         0x200a : "COMND LE_Set_Advertise_Enable",
-        0x200b : "COMND LE_Set_Set_Scan_Parameters",
+        0x200b : "COMND LE_Set_Scan_Parameters",
         0x200c : "COMND LE_Set_Scan_Enable",
         0x200d : "COMND LE_Create_Connection",            # 2, 2, 1, 1, peer address (6), 1, 2, 2, 2, 2, 2, 2
-        0x200e : "COMND LE_Create_Connection_Cancel ",
+        0x200e : "COMND LE_Create_Connection_Cancel",
         0x200f : "COMND LE_Read_White_List_Size",
         0x2010 : "COMND LE_Clear_White_List",
         0x2011 : "COMND LE_Add_Device_To_White_List",     # 1, address (6)
@@ -275,6 +275,21 @@ HCI_COMMANDS = {
         0x201f : "COMND LE_Test_End",
         0x2020 : "COMND LE_Remote_Connection_Parameter_Request_Reply",
         0x2021 : "COMND LE_Remote_Connection_Parameter_Request_Negative_Reply",
+        # News as of v4.2 ???
+        0x2022 : "COMND LE_Set_Data_Length",
+        0x2023 : "COMND LE_Read_Suggested_Default_Data_Length",
+        0x2024 : "COMND LE_Write_Suggested_Default_Data_Length",
+        0x2025 : "COMND LE_Read_Local_P256_Public_Key",
+        0x2026 : "COMND LE_Generate_DHKey",
+        0x2027 : "COMND LE_Add_Device_To_Resolving_List",
+        0x2028 : "COMND LE_Remove_Device_From_Resolving_List",
+        0x2029 : "COMND LE_Clear_Resolving_list",
+        0x202a : "COMND LE_Read_Resolving_List_Size",
+        0x202b : "COMND LE_Read_Peer_Resolvable_Address",
+        0x202c : "COMND LE_Read_Local_Resolvable_Address",
+        0x202d : "COMND LE_Set_Address_Resolution_Enable",
+        0x202e : "COMND LE_Set_Resolvable_Private_Address_Timeout",
+        0x202f : "COMND LE_Read_Maximum_Data_Length",
 
 # Vendor Specific Commands
         0xfc7e : "COMND VSC_Write_Dynamic_SCO_Routing_Change",
@@ -318,6 +333,7 @@ Thus...
 OPCODE_OGF_MASK = 0x003f # 0000 0000 0011 1111 --- grap (upper) 6 bits for OGF
 OPCODE_OCF_MASK = 0x03ff # 1111 1111 1100 0000 --- grap (lower) 10 bits for OCF
 
+
 def parse_opcode(opcode):
     """
     The HCI Command OpCode consists of two parts: the OGF and OCF.
@@ -327,6 +343,85 @@ def parse_opcode(opcode):
     ogf = (opcode >> 10) & OPCODE_OGF_MASK
     ocf = opcode & OPCODE_OGF_MASK
     return (opcode, ogf, ocf)
+
+
+def cmd_to_str(opcode, verbose=False):
+    """
+    Return a string representing the opcode
+    """
+    if opcode in HCI_COMMANDS:
+        # if verbose output is enabled, show the OGG/OCF components.
+        opcode, ogf, ocf = parse_opcode(opcode)
+        opstr = f' [opcode={hci.i2h(opcode, nbytes=2)} ({opcode}), ogf={hci.i2h(ogf)} ({ogf}), ocf={hci.i2h(ocf, nbytes=2)} ({ocf})]' if verbose else ''
+        # command string
+        return f'{HCI_COMMANDS[opcode]}{opstr}'
+    else:
+        return f"UNKNOWN OPCODE ({opcode})"
+
+
+"""
+
+=======
+Parsing
+=======
+
+"""
+
+def parse_cmd_data(opcode, data):
+    """
+    Parse HCI Command Data.
+    """
+    assert(opcode in HCI_COMMANDS)
+
+    ###################################################################
+    ## Non-LE Events ##################################################
+
+    if opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection"]:
+        pass
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Disconnect"]:
+        return CommandDisconnect(data[0:2], data[2], data)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection_Cancel"]:
+        pass
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Accept_Connection_Request"]:
+        pass
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Reject_Connection_Request"]:
+        pass
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Link_Key_Request_Reply"]:
+        pass
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Read_Remote_Version_Information"]:
+        pass
+
+    ###################################################################
+    ## LE Events ######################################################
+
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Random_Address"]:
+        return CommandLESetRandomAddress(data, data)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertising_Data"]:
+        return
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Responce_Data"]:
+        return
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertise_Enable"]:
+        return
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Parameters"]:
+        return
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Enable"]:
+        return
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Create_Connection"]:
+        return CommandLECreateConnection(data[0:2], data[2:4], data[4], data[5], data[6:12], data[12], data[13:15], data[15:17], data[17:19], data[19:21], data[21:23], data[23:25], data)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Add_Device_To_White_List"]:
+        pass # 1 6
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_RemoveDevice_From_White_List"]:
+        pass # 1 6
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Connection_Update"]:
+        return CommandLEConnectionUpdate(data[0:2], data[2:4], data[4:6], data[6:8], data[8:10], data[10:12], data[12:14], data)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Read_Remote_Used_Features"]:
+        pass # 2 (connection handle)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Encrypt"]:
+        pass # 16 (key), 16 (data) # >>> will receive an event with status and data encrypted (if command succeeded).
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Start_Encryption"]:
+        pass # 2 (handle), 8 (rand. num), 2 (encrypted diversifier), 16 (LTK)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Long_Term_Key_Request_Reply"]:
+        pass # 2 (handle), 16 (LTK)
 
 
 def parse(data):
@@ -342,21 +437,5 @@ def parse(data):
 
     Returns a tuple of (opcode, length, data)
     """
-    # hdr = CMD_HEADER()
-    # hdr.asbyte = struct.unpack("<3B", data[:3])[0] # NOTE: needs to be a single format - grab 4 bytes; use what you need
-    # opcode = int(hdr.b.opcode)
-    # length = int(hdr.b.length)
-
     opcode, length = struct.unpack("<HB", data[:3])
-    # print(f'CMD::{struct.unpack("<HB", data[:3])}', opcode, length)
     return opcode, length, data[3:]
-
-
-def cmd_to_str(opcode):
-    """
-    Return a string representing the opcode
-    """
-    if opcode in HCI_COMMANDS:
-        return HCI_COMMANDS[opcode]
-    else:
-        return f"UNKNOWN OPCODE ({opcode})"

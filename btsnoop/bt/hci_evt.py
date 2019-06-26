@@ -3,11 +3,12 @@ Parse HCI Events
 """
 import sys
 import struct
+
 import ctypes
-# from ctypes import c_uint#, c_uint8, c_uint16, c_ulong
 from ctypes import *
 
 from . import hci
+from .wrappers import *
 
 ###
 ### Helper Structures
@@ -37,23 +38,6 @@ class EVT_HEADER_BITS( ctypes.LittleEndianStructure ):
 class EVT_HEADER( ctypes.Union ):
     _fields_ = [("b", EVT_HEADER_BITS),
                 ("asbyte", c_uint)]
-
-# class EVT_DATA_LE_CONNECTION_COMPLETE_BITS( ctypes.LittleEndianStructure ):
-#     _fields_ = [("status",  c_uint8),
-#                 ("conn_hdl",  c_uint8*2),
-#                 ("role",  c_uint8),
-#                 ("peer_addr_type",  c_uint8),
-#                 ("peer_addr",  c_uint8*6),
-#                 ("conn_interval",  c_uint8*2),
-#                 ("conn_latency",  c_uint8*2),
-#                 ("timeout",  c_uint8*2),
-#                 ("master_clk_acc",  c_uint8)]
-#
-#
-# class EVT_LE_DATA( ctypes.Union ):
-#     _fields_ = [("b", EVT_DATA_LE_CONNECTION_COMPLETE_BITS),
-#                 ("asbyte", c_uint)]
-
 
 """
 Event codes and names for HCI events
@@ -93,12 +77,17 @@ References can be found here:
 ** [vol 2] Part E (Section 7.7.65) - Le Meta Event
 """
 HCI_LE_META_EVENTS = {  # Subevent Codes
-        0x01 : "EVENT LE_Connection_Complete", # Status (1), Connection_Handle (12 bits), Role (1), Peer_Address_Type (1), Peer_Address (6), Conn_Interval (2), Conn_Latency (2), Supervision_Timeout (2), Master_Clock_Accuracy (1)
-        0x02 : "EVENT LE_Advertising_Report",
-        0x03 : "EVENT LE_Connection_Update_Complete",
-        0x04 : "EVENT LE_Read_Remote_Used_Features_Complete",
-        0x05 : "EVENT LE_Long_Term_Key_Request",
-        0x06 : "EVENT LE_Remote_Connection_Parameter_Request"
+        0x01 : "LE_EVENT LE_Connection_Complete", # Status (1), Connection_Handle (12 bits), Role (1), Peer_Address_Type (1), Peer_Address (6), Conn_Interval (2), Conn_Latency (2), Supervision_Timeout (2), Master_Clock_Accuracy (1)
+        0x02 : "LE_EVENT LE_Advertising_Report",
+        0x03 : "LE_EVENT LE_Connection_Update_Complete",
+        0x04 : "LE_EVENT LE_Read_Remote_Used_Features_Complete",
+        0x05 : "LE_EVENT LE_Long_Term_Key_Request",
+        0x06 : "LE_EVENT LE_Remote_Connection_Parameter_Request",
+        0x07 : "LE_EVENT LE_Data_Length_Change",
+        0x08 : "LE_EVENT LE_Read_Local_P256_Public_Key_Complete",
+        0x09 : "LE_EVENT LE_Generate_DHKey_Complete",
+        0x0a : "LE_EVENT LE_Enhanced_Connection_Complete",
+        0x0b : "LE_EVENT LE_Direct_Advertising_Report"
     }
 INV_HCI_LE_META_EVENTS_LOOKUP = dict(map(reversed, HCI_LE_META_EVENTS.items()))
 
@@ -205,7 +194,8 @@ def evt_to_str(evtcode):
     """
     if evtcode not in HCI_EVENTS:
         return None # if evtcode is None or not in HCI_EVENTS, make this (effectively) a NOP
-    return HCI_EVENTS[evtcode]
+    # return HCI_EVENTS[evtcode]
+    return f'{HCI_EVENTS[evtcode]} (0x{evtcode:02x})'
 
 
 def subevt_to_str(subevtcode):
@@ -214,7 +204,42 @@ def subevt_to_str(subevtcode):
     """
     if subevtcode not in HCI_LE_META_EVENTS:
         return None # if subevtcode is None or not in HCI_LE_META_EVENTS, make this (effectively) a NOP
-    return HCI_LE_META_EVENTS[subevtcode]
+    # return HCI_LE_META_EVENTS[subevtcode]
+    return f'{HCI_LE_META_EVENTS[subevtcode]} (0x{subevtcode:02x})'
+
+
+# def le_evttype_to_str(evttype):
+#     """
+#     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 932
+#     """
+#     if evttype == 0x00:
+#         return f'Connectable undirected advertising (ADV_IND)'
+#     elif evttype == 0x01:
+#         return f'Connectable directed advertising (ADV_DIRECT_IND)'
+#     elif evttype == 0x02:
+#         return f'Scannable undirected advertising (ADV_SCAN_IND)'
+#     elif evttype == 0x03:
+#         return f'Non connectable undirected advertising (ADV_NONCONN_IND)'
+#     elif evttype == 0x04:
+#         return f'Scan Response (SCAN_RSP)'
+#     else:
+#         return f'Reserved for future use'
+#
+#
+# def le_addrtype_to_str(addrtype):
+#     """
+#     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 933
+#     """
+#     if addrtype == 0x00:
+#         return f'Public Device Address'
+#     elif addrtype == 0x01:
+#         return f'Random Device Address'
+#     elif addrtype == 0x02:
+#         return f'Public Identity Address' # (Corresponds to Resolved Private Address)
+#     elif addrtype == 0x03:
+#         return f'Random (static) Identity Address' # (Corresponds to Resolved Private Address)
+#     else:
+#         return f'Reserved for future use'
 
 
 """
@@ -229,17 +254,11 @@ This is a work in progress.
 def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     """
     Parse HCI Event Data.
+
+    NOTE: Because the subevtcode has been parsed already,
+    `data` is everything AFTER the subevtcode in the packet.
     """
     assert(hci_evt_evtcode in HCI_EVENTS)
-
-    #########
-    # DEBUG #
-    #########
-
-    prefix = str(sys._getframe().f_code.co_name).upper()
-    hci_evt_info    = f'{hci.i2h(hci_evt_evtcode)}, {evt_to_str(hci_evt_evtcode)}' if hci_evt_evtcode else '' # Only report evt info if available...
-    hci_le_evt_info = f' / {hci.i2h(hci_evt_subevtcode)}, {subevt_to_str(hci_evt_subevtcode)}' if hci_evt_subevtcode else '' # Only report subevt info if available...
-    # print(f'{prefix}:: {hci_evt_info}{hci_le_evt_info}, len(data)={len(data)}, data={data}')
 
     ###
     ### Parse LE Events
@@ -248,51 +267,17 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT LE_Meta_Event"]:
         assert(hci_evt_subevtcode in HCI_LE_META_EVENTS)
 
-        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["EVENT LE_Connection_Complete"]:
-            assert(len(data) == 18)
-            bdaddr = hci.pkt_bytes_to_bdaddr(data[5:11])
-            # print(f'{prefix}:: le_bdaddr=[{bdaddr}]')
-            return bdaddr
+        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Connection_Complete"]:
+            return EventLEConnectionComplete(data[0], data[1:3], data[3], data[4], data[5:11], data[11:13], data[13:15], data[15:17], data[17], data)
 
-            # Status (1), Connection_Handle (12 bits), Role (1), Peer_Address_Type (1), Peer_Address (6), Conn_Interval (2), Conn_Latency (2), Supervision_Timeout (2), Master_Clock_Accuracy (1)
-                 # :1                      :3             :4                     :5                 5:11
+        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Advertising_Report"]:
+            return EventLEAdvertisingReport(data[0], data[1], data[2], data[3:9], data[9], data[10:-1], data[-1], data)
 
-            # ledata = EVT_LE_DATA()
-            # # ledata.asbyte = struct.unpack("<18B", data)[0]
-            # ledata.asbyte = struct.unpack("<BHBB6BHHHB", data)[0]
-            #
-            # status = ledata.b.status
-            # conn_hdl = ledata.b.conn_hdl
-            # role = ledata.b.role
-            # peer_addr_type = ledata.b.peer_addr_type
-            # peer_addr = ledata.b.peer_addr #''.join(map(chr, ledata.b.peer_addr))
-            # conn_interval = ledata.b.conn_interval
-            # conn_latency = ledata.b.conn_latency
-            # timeout = ledata.b.timeout
-            # master_clk_acc = ledata.b.master_clk_acc
-            #
-            # print(
-            #     f"status={status} "
-            #     f"conn_hdl={conn_hdl} "
-            #     f"role={role} "
-            #     f"peer_addr_type={peer_addr_type} "
-            #     f"peer_addr={peer_addr} "
-            #     f"conn_interval={conn_interval} "
-            #     f"conn_latency={conn_latency} "
-            #     f"timeout={timeout} "
-            #     f"master_clk_acc={master_clk_acc} "
-            # )
+        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Connection_Update_Complete"]:
+            return EventLEConnectionUpdateComplete(data[0], data[1:3], data[3:5], data[5:7], data[7:9], data)
 
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["EVENT LE_Advertising_Report"]:
-            pass
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["EVENT LE_Connection_Update_Complete"]:
-            pass
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["EVENT LE_Read_Remote_Used_Features_Complete"]:
-            pass
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["EVENT LE_Long_Term_Key_Request"]:
-            pass
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["EVENT LE_Remote_Connection_Parameter_Request"]:
-            pass
+        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Read_Remote_Used_Features_Complete"]:
+            return EventLEReadRemoteUsedFeaturesComplete(data[0], data[1:3], data[3:], data)
 
     ###
     ### Parse Non-LE Events
@@ -303,7 +288,7 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
         assert(len(data) == 11)
 
     elif hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Request"]:
-         # -> Connection_Request -> BD_ADDR (6), CoD (3), link type (1)
+        # -> Connection_Request -> BD_ADDR (6), CoD (3), link type (1)
         assert(len(data) == 10)
         bdaddr = hci.pkt_bytes_to_bdaddr(data[:6])
         cod = hci.pkt_bytes_to_cod(data[6:9])
@@ -343,5 +328,5 @@ def parse(data):
         return (evtcode, length, None, data[2:])
     else: ## LE
         subevtcode = struct.unpack("<B", data[2:3])[0]
-        length -= 1 # Subtrackt length of SubEvent code
+        length -= 1 # Subtract length of SubEvent code
         return (evtcode, length, subevtcode, data[3:])
