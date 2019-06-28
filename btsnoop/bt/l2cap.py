@@ -8,6 +8,7 @@ from bitstring import BitStream, BitArray
 from . import hci
 from . import hci_acl
 from . import att
+from . import smp
 
 from . import wrappers as pkts
 
@@ -158,19 +159,19 @@ def parse_sch_data(code, id, data):
     BLUETOOTH SPECIFICATION Version 4.2 [Vol 3, Part A] page 57
     """
     if code == INV_L2CAP_SCH_PDUS["SCH Connection_Request"]:
-        return L2CAPConnectionRequest(code, id, data[0:2], data[2:4])
+        return pkts.L2CAPConnectionRequest(code, id, data[0:2], data[2:4])
     elif code == INV_L2CAP_SCH_PDUS["SCH Connection_Response"]:
-        return L2CAPConnectionResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
+        return pkts.L2CAPConnectionResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
 
     elif code == INV_L2CAP_SCH_PDUS["SCH Disconnection_Request"]:
-        return L2CAPDisconnectionRequest(code, id, data[0:2], data[2:4])
+        return pkts.L2CAPDisconnectionRequest(code, id, data[0:2], data[2:4])
     elif code == INV_L2CAP_SCH_PDUS["SCH Disconnection_Response"]:
-        return L2CAPDisconnectionResponse(code, id, data[0:2], data[2:4])
+        return pkts.L2CAPDisconnectionResponse(code, id, data[0:2], data[2:4])
 
     elif code == INV_L2CAP_SCH_PDUS["SCH Create_Channel_Request"]:
-        return L2CAPCreateChannelRequest(code, id, data[0:2], data[2:4], data[4])
+        return pkts.L2CAPCreateChannelRequest(code, id, data[0:2], data[2:4], data[4])
     elif code == INV_L2CAP_SCH_PDUS["SCH Create_Channel_Response"]:
-        return L2CAPCreateChannelResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
+        return pkts.L2CAPCreateChannelResponse(code, id, data[0:2], data[2:4], data[4:6], data[6:8])
 
 def parse_sch(l2cap_data):
     """
@@ -203,6 +204,29 @@ def parse_l2cap_data(l2cap_len, l2cap_cid, l2cap_data):
 
     if l2cap_cid == L2CAP_CID_LE_ATT:
         att_opcode, att_data = att.parse(l2cap_data)
+
+        # ATT Reads
+        if att_opcode == 0x0a:
+            pass # hdl
+        if att_opcode == 0x0b:
+            pass # val
+
+        # ATT Writes
+        if att_opcode == 0x12:
+            pass # hdl, att value-to-write
+        if att_opcode == 0x13:
+            pass # a write ACK (if received, the write was successful)
+        if att_opcode == 0x52:
+            pass # hdl, att value-to-write
+
+        # Server Initiated
+        if att_opcode == 0x1B: # Notification (Notify)
+            pass # hdl, value
+        if att_opcode == 0x1D: # Indication
+            pass # hdl, value
+        if att_opcode == 0x1C: # Confirmation
+            pass
+
         att_handle = BitArray(att_data)[0:16] # select 1st two bytes (=16 bits)
         att_handle.byteswap([0,2], repeat=False) # need to swap first two bytes
         att_payload = BitArray(att_data)[16:] # leave byte-order alone in payload?

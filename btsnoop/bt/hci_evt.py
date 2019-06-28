@@ -268,9 +268,34 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     Parse HCI Event Data.
 
     NOTE: Because the subevtcode has been parsed already,
-    `data` is everything AFTER the subevtcode in the packet.
+    `data` is everything AFTER the subevtcode in LE Meta Event packets.
     """
     assert(hci_evt_evtcode in HCI_EVENTS)
+
+    ###
+    ### Parse Non-LE Events
+    ###
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Complete"]:
+        return EventConnectionComplete(data[0], data[1:3], data[3:9], data[9], data[10], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Request"]:
+        return EventConnectionRequest(data[0:6], data[6:9], data[9:], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Disconnection_Complete"]:
+        return EventDisconnectionComplete(data[0], data[1:3], data[3], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Complete"]:
+        return EventCommandComplete(data[1:3], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Role_Change"]:
+        return EventRoleChange(data[0], data[1:7], data[7], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Logical_Link_Complete"]:
+        return EventLogicalLinkComplete(data[0], data[1:3], data[3], data[4], data)
+
+    # if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Disconnection_Logical_Link_Complete"]:
+    #     return EventDisconnectionLogicalLinkComplete(data[0], data[1:3], data[3], data)
 
     ###
     ### Parse LE Events
@@ -279,37 +304,21 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT LE_Meta_Event"]:
         assert(hci_evt_subevtcode in HCI_LE_META_EVENTS)
 
+        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Advertising_Report"]:
+            return EventLEAdvertisingReport(data[0], data[1], data[2], data[3:9], data[9], data[10:-1], data[-1], data)
+        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Direct_Advertising_Report"]:
+            return EventLEDirectAdvertisingReport(data[0], data[1], data[2], data[3:9], data[9], data[10:16], data[-1], data)
+
         if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Connection_Complete"]:
             return EventLEConnectionComplete(data[0], data[1:3], data[3], data[4], data[5:11], data[11:13], data[13:15], data[15:17], data[17], data)
+        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Enhanced_Connection_Complete"]:
+            return EventLEEnhancedConnectionComplete(data[0], data[1:3], data[3], data[4], data[5:11], data[11:17], data[17:23], data[11:13], data[13:15], data[15:17], data[17], data)
 
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Advertising_Report"]:
-            return EventLEAdvertisingReport(data[0], data[1], data[2], data[3:9], data[9], data[10:-1], data[-1], data)
-
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Connection_Update_Complete"]:
+        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Connection_Update_Complete"]:
             return EventLEConnectionUpdateComplete(data[0], data[1:3], data[3:5], data[5:7], data[7:9], data)
 
-        elif hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Read_Remote_Used_Features_Complete"]:
+        if hci_evt_subevtcode == INV_HCI_LE_META_EVENTS_LOOKUP["LE_EVENT LE_Read_Remote_Used_Features_Complete"]:
             return EventLEReadRemoteUsedFeaturesComplete(data[0], data[1:3], data[3:], data)
-
-    ###
-    ### Parse Non-LE Events
-    ###
-
-    elif hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Complete"]:
-        # -> status (1), connection handle (2), BD_ADDR (6), link type (1), encrytion enabled (1)
-        assert(len(data) == 11)
-
-    elif hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Request"]:
-        # -> Connection_Request -> BD_ADDR (6), CoD (3), link type (1)
-        assert(len(data) == 10)
-        bdaddr = hci.pkt_bytes_to_bdaddr(data[:6])
-        cod = hci.pkt_bytes_to_cod(data[6:9])
-        lt = struct.unpack("<B", data[9:])[0]
-        return (bdaddr, cod, lt)
-
-    elif hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Complete"]:
-        response_opcode = hci.pkt_bytes_to_hci_opcode(data[1:3])
-        return response_opcode #, response_opcode_str
 
 
 def parse(data):

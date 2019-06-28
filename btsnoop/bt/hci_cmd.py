@@ -254,12 +254,12 @@ HCI_COMMANDS = {
         0x200a : "COMND LE_Set_Advertise_Enable",
         0x200b : "COMND LE_Set_Scan_Parameters",
         0x200c : "COMND LE_Set_Scan_Enable",
-        0x200d : "COMND LE_Create_Connection",            # 2, 2, 1, 1, peer address (6), 1, 2, 2, 2, 2, 2, 2
+        0x200d : "COMND LE_Create_Connection",
         0x200e : "COMND LE_Create_Connection_Cancel",
         0x200f : "COMND LE_Read_White_List_Size",
         0x2010 : "COMND LE_Clear_White_List",
-        0x2011 : "COMND LE_Add_Device_To_White_List",     # 1, address (6)
-        0x2012 : "COMND LE_RemoveDevice_From_White_List", # 1, address (6)
+        0x2011 : "COMND LE_Add_Device_To_White_List",
+        0x2012 : "COMND LE_RemoveDevice_From_White_List",
         0x2013 : "COMND LE_Connection_Update",
         0x2014 : "COMND LE_Set_Host_Channel_Classification",
         0x2015 : "COMND LE_Read_Channel_Map",
@@ -360,68 +360,66 @@ def cmd_to_str(opcode, verbose=False):
 
 
 """
-
 =======
 Parsing
 =======
-
 """
 
 def parse_cmd_data(opcode, data):
     """
     Parse HCI Command Data.
     """
-    assert(opcode in HCI_COMMANDS)
-
-    ###################################################################
     ## Non-LE Events ##################################################
 
     if opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection"]:
-        pass
+        return CommandCreateConnection(data[0:6], data[6:8], data[8], data[9], data[10:12], data[12], data)
     elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Disconnect"]:
         return CommandDisconnect(data[0:2], data[2], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection_Cancel"]:
-        pass
     elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Accept_Connection_Request"]:
-        pass
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Reject_Connection_Request"]:
-        pass
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Link_Key_Request_Reply"]:
-        pass
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Read_Remote_Version_Information"]:
-        pass
+        return CommandAcceptConnectionRequest(data[0:6], data[6], data)
+    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Switch_Role"]:
+        return CommandSwitchRole(data[0:6], data[6], data)
 
-    ###################################################################
     ## LE Events ######################################################
 
     elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Random_Address"]:
         return CommandLESetRandomAddress(data, data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertising_Data"]:
-        return
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Responce_Data"]:
-        return
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertise_Enable"]:
-        return
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Parameters"]:
-        return
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Enable"]:
-        return
     elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Create_Connection"]:
         return CommandLECreateConnection(data[0:2], data[2:4], data[4], data[5], data[6:12], data[12], data[13:15], data[15:17], data[17:19], data[19:21], data[21:23], data[23:25], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Add_Device_To_White_List"]:
-        pass # 1 6
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_RemoveDevice_From_White_List"]:
-        pass # 1 6
     elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Connection_Update"]:
         return CommandLEConnectionUpdate(data[0:2], data[2:4], data[4:6], data[6:8], data[8:10], data[10:12], data[12:14], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Read_Remote_Used_Features"]:
-        pass # 2 (connection handle)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Encrypt"]:
-        pass # 16 (key), 16 (data) # >>> will receive an event with status and data encrypted (if command succeeded).
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Start_Encryption"]:
-        pass # 2 (handle), 8 (rand. num), 2 (encrypted diversifier), 16 (LTK)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Long_Term_Key_Request_Reply"]:
-        pass # 2 (handle), 16 (LTK)
+
+    ## Later.... ######################################################
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection_Cancel"]:
+    #     pass
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Reject_Connection_Request"]:
+    #     pass
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Link_Key_Request_Reply"]:
+    #     pass
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Read_Remote_Version_Information"]:
+    #     pass
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertising_Data"]:
+    #     return
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Responce_Data"]:
+    #     return
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertise_Enable"]:
+    #     return
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Parameters"]:
+    #     return
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Enable"]:
+    #     return
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Add_Device_To_White_List"]:
+    #     pass # 1 6
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_RemoveDevice_From_White_List"]:
+    #     pass # 1 6
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Read_Remote_Used_Features"]:
+    #     pass # 2 (connection handle)
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Encrypt"]:
+    #     pass # 16 (key), 16 (data) # >>> will receive an event with status and data encrypted (if command succeeded).
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Start_Encryption"]:
+    #     pass # 2 (handle), 8 (rand. num), 2 (encrypted diversifier), 16 (LTK)
+    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Long_Term_Key_Request_Reply"]:
+    #     pass # 2 (handle), 16 (LTK)
 
 
 def parse(data):

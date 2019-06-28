@@ -19,6 +19,20 @@ from . import smp
 """
 
 @dataclass
+class CommandCreateConnection:
+    addr: str # 6
+    pkt_type: str
+    mode: str
+    reserved: str
+    clk_offset: str
+    allow_role_switch: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
 class CommandDisconnect:
     hdl: bytes # 2
     reason: bytes #1
@@ -28,6 +42,16 @@ class CommandDisconnect:
         assert(len(self.rawbytes) == 3)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.reason = hci.ERROR_CODES[self.reason]
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
+class CommandAcceptConnectionRequest:
+    addr: str # 6
+    role: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.rawbytes = hci.bytes2hexstr(self.rawbytes)
 
 @dataclass
@@ -106,12 +130,125 @@ class CommandLEConnectionUpdate:
         self.rawbytes = hci.bytes2hexstr(self.rawbytes)
 
 
+@dataclass
+class CommandSwitchRole:
+    addr: str
+    role: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.role = self.role2str()
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+    def role2str(self):
+        code = f' ({hci.i2h(self.role)})'
+        if self.role == 0x00:
+            return f'Change Own Role to Master{code}'
+        elif self.role == 0x01:
+            return f'Change Own Role to Slave{code}'
+        else:
+            return f'Unknown Role Change{code}'
+
+
 """
 --------------------------------------------------------------------------------
                                HCI Event Packets
 --------------------------------------------------------------------------------
 """
 
+@dataclass
+class EventConnectionComplete:
+    """
+    """
+    status: str
+    hdl: str
+    addr: str
+    lt: str
+    enc_enabled: bool
+    rawbytes: str
+
+    def __post_init__(self):
+        assert(len(self.rawbytes) == 11)
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.lt = hci.i2h(self.lt)
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
+class EventConnectionRequest:
+    """
+    """
+    addr: str
+    cod: str
+    lt: str
+    rawbytes: str
+
+    def __post_init__(self):
+        assert(len(self.rawbytes) == 10)
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.cod = hci.pkt_bytes_to_cod(self.cod)
+        self.lt = hci.i2h(self.lt)
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
+class EventDisconnectionComplete:
+    """
+    """
+    status: str
+    hdl: str
+    reason: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.reason = hci.ERROR_CODES[self.reason]
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
+class EventCommandComplete:
+    rescode: str
+    rawbytes: str
+
+    def __post_init__(self):
+        assert(len(self.rawbytes) > 2)
+        self.rescode = hci.pkt_bytes_to_hci_opcode(self.rescode)
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
+class EventRoleChange:
+    status: str
+    addr: str
+    role: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.role = self.role2str()
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+    def role2str(self):
+        code = f' ({hci.i2h(self.role)})'
+        if self.role == 0x00:
+            return f'New Role: Master{code}'
+        elif self.role == 0x01:
+            return f'New Role: Slave{code}'
+        else:
+            return f'Unknown Role Change{code}'
+
+
+@dataclass
+class EventLogicalLinkComplete:
+    status: str
+    llhdl: str # logical link handle
+    plhdl: str # physical link handle
+    txflowID: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.llhdl = hci.pkt_bytes_to_conn_hdl(self.llhdl)
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
 
 @dataclass
 class EventLEConnectionComplete:
@@ -162,6 +299,58 @@ class EventLEConnectionComplete:
             return f'Reserved for future use'
 
 @dataclass
+class EventLEEnhancedConnectionComplete:
+    """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 944
+    """
+    status: bytes
+    hdl: str
+    role: bytes
+    addr_type: bytes
+    addr: str
+    local_resolvable_addr: str
+    peer_resolvable_addr: str
+    conn_interval: bytes
+    conn_latency: bytes
+    supervision_timeout: bytes
+    master_clk_acc: bytes
+    rawbytes: str
+    addr_type_str: str = ''
+    role_str: str = ''
+
+    def __post_init__(self):
+        assert(len(self.rawbytes) == 18)
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.local_resolvable_addr = hci.pkt_bytes_to_bdaddr(self.local_resolvable_addr)
+        self.peer_resolvable_addr = hci.pkt_bytes_to_bdaddr(self.peer_resolvable_addr)
+        self.addr_type_str = self.addrtype2str()
+        self.role_str = self.role2str()
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+    def addrtype2str(self):
+        """
+        BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
+        """
+        if self.addr_type == 0x00:
+            return f'Public' #f'Peer is using a Public Device Address'
+        elif self.addr_type == 0x01:
+            return r'Random' #f'Peer is using a Random Device Address'
+        else:
+            return f'Reserved for future use'
+
+    def role2str(self):
+        """
+        BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
+        """
+        if self.role == 0x00:
+            return f'Master' #f'Connection is master'
+        elif self.role == 0x01:
+            return r'Slave' #f'Connection is slave'
+        else:
+            return f'Reserved for future use'
+
+@dataclass
 class EventLEAdvertisingReport:
     """
     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 932
@@ -178,6 +367,27 @@ class EventLEAdvertisingReport:
     def __post_init__(self):
         assert(self.num_reports == 1) # FIXME LATER: just checking - the controller can cache reports & send multiple at one time, but I haven't seen this in practice yet....
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.rssi = hci.b2si(self.rssi) # convert signed-integer to correct value
+        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+
+@dataclass
+class EventLEDirectAdvertisingReport:
+    """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 948
+    """
+    num_reports: bytes
+    evt_type: bytes
+    addr_type: bytes
+    addr: bytes
+    dir_addr_type: bytes
+    dir_addr: bytes
+    rssi: int
+    rawbytes: str
+
+    def __post_init__(self):
+        assert(self.num_reports == 1) # FIXME LATER: just checking - the controller can cache reports & send multiple at one time, but I haven't seen this in practice yet....
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.dir_addr = hci.pkt_bytes_to_bdaddr(self.dir_addr)
         self.rssi = hci.b2si(self.rssi) # convert signed-integer to correct value
         self.rawbytes = hci.bytes2hexstr(self.rawbytes)
 
@@ -217,6 +427,7 @@ class EventLEReadRemoteUsedFeaturesComplete:
         self.le_features = a.bin[0:8] # bits 8-64 are RFU
 
 
+
 """
 --------------------------------------------------------------------------------
                                  L2CAP Packets
@@ -229,13 +440,13 @@ class L2CAPConnectionRequest:
     code: str # 1
     id: str # 1
     psm: str # 2
-    cid: str # 2
+    scid: str # 2
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
         self.id = hci.i2h(self.id)
         self.psm = hci.pkt_bytes_to_l2cap_psm(self.psm)
-        self.cid = hci.pkt_bytes_to_l2cap_cid(self.cid)
+        self.scid = hci.pkt_bytes_to_l2cap_cid(self.scid)
 
 @dataclass
 class L2CAPConnectionResponse:
@@ -285,14 +496,14 @@ class L2CAPCreateChannelRequest:
     code: str # 1
     id: str # 1
     psm: str # 2
-    cid: str # 2
+    scid: str # 2
     ctrlid: str
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
         self.id = hci.i2h(self.id)
         self.psm = hci.pkt_bytes_to_l2cap_psm(self.psm)
-        self.cid = hci.pkt_bytes_to_l2cap_cid(self.cid)
+        self.scid = hci.pkt_bytes_to_l2cap_cid(self.scid)
         self.ctrlid = hci.i2h(self.ctrlid)
 
 @dataclass
