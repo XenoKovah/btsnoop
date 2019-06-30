@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from bitstring import BitStream, BitArray
 
 from . import hci
+from . import hci_cmd
+# from . import hci_evt
 from . import l2cap
 from . import att
 from . import smp
@@ -30,7 +32,7 @@ class CommandCreateConnection:
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class CommandDisconnect:
@@ -42,7 +44,7 @@ class CommandDisconnect:
         assert(len(self.rawbytes) == 3)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.reason = hci.ERROR_CODES[self.reason]
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class CommandAcceptConnectionRequest:
@@ -52,7 +54,7 @@ class CommandAcceptConnectionRequest:
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class CommandLESetRandomAddress:
@@ -62,7 +64,7 @@ class CommandLESetRandomAddress:
     def __post_init__(self):
         assert(len(self.rawbytes) == 6)
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class CommandLECreateConnection:
@@ -85,7 +87,7 @@ class CommandLECreateConnection:
         self.peer_addr_type = self.peeraddrtype2str()
         self.peer_addr = hci.pkt_bytes_to_bdaddr(self.peer_addr)
         self.own_addr_type = self.ownaddrtype2str()
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
     def peeraddrtype2str(self):
         code = f' ({hci.i2h(self.peer_addr_type)})'
@@ -127,7 +129,7 @@ class CommandLEConnectionUpdate:
     def __post_init__(self):
         assert(len(self.rawbytes) == 14)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 
 @dataclass
@@ -139,7 +141,7 @@ class CommandSwitchRole:
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.role = self.role2str()
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
     def role2str(self):
         code = f' ({hci.i2h(self.role)})'
@@ -173,7 +175,7 @@ class EventConnectionComplete:
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.lt = hci.i2h(self.lt)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventConnectionRequest:
@@ -189,7 +191,7 @@ class EventConnectionRequest:
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.cod = hci.pkt_bytes_to_cod(self.cod)
         self.lt = hci.i2h(self.lt)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventDisconnectionComplete:
@@ -203,7 +205,7 @@ class EventDisconnectionComplete:
     def __post_init__(self):
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.reason = hci.ERROR_CODES[self.reason]
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventCommandComplete:
@@ -213,7 +215,23 @@ class EventCommandComplete:
     def __post_init__(self):
         assert(len(self.rawbytes) > 2)
         self.rescode = hci.pkt_bytes_to_hci_opcode(self.rescode)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
+
+@dataclass
+class EventCommandStatus:
+    status: str
+    num_cmd_pkts: str
+    opcode: str
+    rawbytes: str
+
+    def __post_init__(self):
+        assert(len(self.rawbytes) > 2)
+        self.status = hci.i2h(self.status, nbytes=1)
+        self.num_cmd_pkts = hci.i2h(self.num_cmd_pkts, nbytes=1)
+        self.opcode = hci.pkt_bytes_to_hci_opcode(self.opcode).lower()
+        opcode_str = hci_cmd.HCI_COMMANDS[hci.h2i(self.opcode)]
+        self.opcode = f'{opcode_str} ({self.opcode})'
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventRoleChange:
@@ -225,7 +243,7 @@ class EventRoleChange:
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.role = self.role2str()
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
     def role2str(self):
         code = f' ({hci.i2h(self.role)})'
@@ -248,7 +266,7 @@ class EventLogicalLinkComplete:
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.llhdl = hci.pkt_bytes_to_conn_hdl(self.llhdl)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventLEConnectionComplete:
@@ -270,11 +288,17 @@ class EventLEConnectionComplete:
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 18)
-        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
-        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.addr_type_str = self.addrtype2str()
         self.role_str = self.role2str()
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.role = hci.i2h(self.role)
+        self.addr_type = hci.i2h(self.addr_type)
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.conn_interval = hci.i2h(self.conn_interval)
+        self.conn_latency = hci.i2h(self.conn_latency)
+        # self.supervision_timeout = hci.i2h(self.supervision_timeout)
+        self.master_clk_acc = hci.i2h(self.master_clk_acc)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
     def addrtype2str(self):
         """
@@ -326,7 +350,7 @@ class EventLEEnhancedConnectionComplete:
         self.peer_resolvable_addr = hci.pkt_bytes_to_bdaddr(self.peer_resolvable_addr)
         self.addr_type_str = self.addrtype2str()
         self.role_str = self.role2str()
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
     def addrtype2str(self):
         """
@@ -368,7 +392,7 @@ class EventLEAdvertisingReport:
         assert(self.num_reports == 1) # FIXME LATER: just checking - the controller can cache reports & send multiple at one time, but I haven't seen this in practice yet....
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.rssi = hci.b2si(self.rssi) # convert signed-integer to correct value
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventLEDirectAdvertisingReport:
@@ -389,7 +413,7 @@ class EventLEDirectAdvertisingReport:
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.dir_addr = hci.pkt_bytes_to_bdaddr(self.dir_addr)
         self.rssi = hci.b2si(self.rssi) # convert signed-integer to correct value
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventLEConnectionUpdateComplete:
@@ -406,7 +430,7 @@ class EventLEConnectionUpdateComplete:
     def __post_init__(self):
         assert(len(self.rawbytes) == 9)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class EventLEReadRemoteUsedFeaturesComplete:
@@ -421,7 +445,7 @@ class EventLEReadRemoteUsedFeaturesComplete:
     def __post_init__(self):
         assert(len(self.rawbytes) == 11)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
-        self.rawbytes = hci.bytes2hexstr(self.rawbytes)
+        self.rawbytes = hci.b2h(self.rawbytes)
         # Also show LE Features as a bit string
         a = BitArray(bytes=self.le_features)
         self.le_features = a.bin[0:8] # bits 8-64 are RFU

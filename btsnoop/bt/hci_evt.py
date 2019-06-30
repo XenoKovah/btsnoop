@@ -288,6 +288,9 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Complete"]:
         return EventCommandComplete(data[1:3], data)
 
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Status"]:
+        return EventCommandStatus(data[0], data[1], data[2:4], data)
+
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Role_Change"]:
         return EventRoleChange(data[0], data[1:7], data[7], data)
 
@@ -349,5 +352,5 @@ def parse(data):
         return (evtcode, length, None, data[2:])
     else: ## LE
         subevtcode = struct.unpack("<B", data[2:3])[0]
-        length -= 1 # Subtract length of SubEvent code
+        # length -= 1 # Subtract length of SubEvent code # TODO: while this makes sense, does the protocol do it like this? or is the length inclusive of everything (even the subevt code?)
         return (evtcode, length, subevtcode, data[3:])

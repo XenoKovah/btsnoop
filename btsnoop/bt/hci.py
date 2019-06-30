@@ -41,23 +41,10 @@ Extract fields from packet bytes.
 - OpCode
 """
 
-def bytes2hexstr(bstr, spaced=True, delim=None):
-    """
-    Convery a sequency of bytes to its hex-formatted string representation.
-    """
-    if type(bstr) != bytes: # if bstr is not a collection of 'bytes' simply return the input
-        return bstr
-    if not delim:
-        delim = " " if spaced else ""
-    return delim.join("{:02x}".format(b) for b in bstr)
-
-# def i2h(data):
-#     """Pretty print int as hex."""
-#     if data:
-#         return f'0x{data:02x}'
 def i2h(val, leading0x=True, nbytes=1):
     """
     Pretty print int as hex.
+
     @leading0x sets whether a leading '0x' will be included in the formated hex string
     @nbytes sets the number of (zero-padded) bytes to use in the formated hex string
     """
@@ -65,15 +52,38 @@ def i2h(val, leading0x=True, nbytes=1):
         if type(val) == bytes:
             val = BitArray(val)
             val = val.int
-            # try:
-            #     val = val.int
-            # except:
-            #     print('VALERROR???', val)
-            #     val = 0
         hexstr = f'0x{val:0>{nbytes*2}x}' # 1byte = XX, 2bytes = XX XX, etc.
         if leading0x:
             return hexstr
         return hexstr[2:]
+
+def b2h(bseq, delim=' ', reverse=False, leading0x=False):
+    """
+    Convert a sequence of bytes to its hex-formatted string representation.
+
+    @reverse determines whether the bytes will be swapped/reveresed to handle endianness
+    @leading0x sets whether a leading '0x' will be included in the formated hex string
+
+    Notes:
+    - If an int (and not a string) is desired, try:
+        h2i(b2h(X))
+    - This routine used to be called 'bytes2hexstr'
+    """
+    if reverse:  # endianness
+        bseq = ''.join(f"{b:02X}" for b in bseq)
+        bseq = delim.join(reversed([bseq[i:i+2] for i in range(0, len(bseq), 2)]))
+    else:
+        bseq = delim.join(f"{b:02X}" for b in bseq)
+
+    return '0x' + bseq if leading0x else bseq
+
+def h2i(hexstr):
+    """
+    Convert hex-formated string to its corresponding value.
+    """
+    assert(type(hexstr) == str)
+    hexstr = hexstr.replace(' ', '') # remove any spaces in the hex string
+    return int(hexstr, 16)
 
 def b2si(byte):
     """Byte to Signed Integer."""
@@ -82,50 +92,39 @@ def b2si(byte):
     else:
         return byte
 
-def pkt_bytes_to_bdaddr(addr_bytes):
+def pkt_bytes_to_bdaddr(addr_bytes, human_readable=False):
     """
     Bluetooth Device Address (BD_ADDR) = 0xXXXXXXXXXXXX (6 octets)
     """
     if type(addr_bytes) != bytes: # if addr_bytes is not a collection of 'bytes' simply return the input
         return addr_bytes
-
-    # extract the BD_ADDR
-    bdaddr = struct.unpack("<6B", addr_bytes)
-    # convert to hex-encoded string;
-    bdaddr = "".join("{:02X}".format(b) for b in bdaddr)
-    # reverse bytes (for some reason, this is how it is formatted...)
-    bdaddr = ":".join(reversed([bdaddr[i:i+2] for i in range(0, len(bdaddr), 2)]))
-    return bdaddr
+    if human_readable:
+        # display reversed and colon-seperated
+        return b2h(struct.unpack("<6B", addr_bytes), delim=':', reverse=True, leading0x=False)
+    else:
+        # display bytes as they appear in the packet
+        return b2h(struct.unpack("<6B", addr_bytes), delim=' ', reverse=False, leading0x=False)
 
 def pkt_bytes_to_conn_hdl(conn_hdl_bytes):
     """
     HCI Connection Handle (HCI Conn_Hdl) = 0xXXXX (2 octets / 12 meaningful bits) Range: 0x0000-0x0EFF
     """
     assert(type(conn_hdl_bytes) == bytes)
-    connhdl = struct.unpack("<BB", conn_hdl_bytes)
-    connhdl = "".join("{:02X}".format(b) for b in connhdl)
-    connhdl = "".join(reversed([connhdl[i:i+2] for i in range(0, len(connhdl), 2)]))
-    return f'0x{connhdl}'
+    return b2h(struct.unpack("<BB", conn_hdl_bytes), delim=' ', reverse=True)
 
 def pkt_bytes_to_l2cap_cid(l2cap_cid_bytes):
     """
     L2CAP Channel ID (L2CAP CID) = 0xXXXX (2 octets)
     """
     assert(type(l2cap_cid_bytes) == bytes)
-    l2capcid = struct.unpack("<BB", l2cap_cid_bytes)
-    l2capcid = "".join("{:02X}".format(b) for b in l2capcid)
-    l2capcid = "".join(reversed([l2capcid[i:i+2] for i in range(0, len(l2capcid), 2)]))
-    return f'0x{l2capcid}'
+    return b2h(struct.unpack("<BB", l2cap_cid_bytes), delim=' ', reverse=True)
 
 def pkt_bytes_to_l2cap_psm(l2cap_psm_bytes):
     """
     Protocol/Service Multiplexer (PSM) = 0xXXXX (2 octets)
     """
     assert(type(l2cap_psm_bytes) == bytes)
-    psm = struct.unpack("<BB", l2cap_psm_bytes)
-    psm = "".join("{:02X}".format(b) for b in psm)
-    psm = "".join(reversed([psm[i:i+2] for i in range(0, len(psm), 2)]))
-    return f'0x{psm}'
+    return b2h(struct.unpack("<BB", l2cap_psm_bytes), delim=' ', reverse=True)
 
 def pkt_bytes_to_cod(cod_bytes):
     """
@@ -163,13 +162,11 @@ def pkt_bytes_to_hci_opcode(opcode_bytes):
     """
     OpCode = 0xXXXX (2 octets)
 
-    NOTE: OpCode ould be from an HCI COMMAND or HCI EVENT
+    NOTE: OpCode could be from an HCI COMMAND or HCI EVENT
     (i.e., a reference to the HCI COMMAND that warranted some HCI EVENT, where the EVENT is a response to the COMMAND)
     """
-    opcode = struct.unpack("<BB", opcode_bytes)
-    opcode = "".join("{:02X}".format(b) for b in opcode)
-    opcode = "".join(reversed([opcode[i:i+2] for i in range(0, len(opcode), 2)]))
-    return f'0x{opcode}'
+    assert(type(opcode_bytes) == bytes)
+    return b2h(struct.unpack("<BB", opcode_bytes), delim=' ', reverse=True)
 
 """
 Error Codes
