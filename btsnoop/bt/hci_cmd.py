@@ -35,75 +35,75 @@ class CMD_HEADER( ctypes.Union ):
 HCI_COMMANDS = {
 
 # 7.1 LINK CONTROL COMMANDS (OGF = 0x01)
-        0x0401 : "COMND Inquiry",
+        0x0401 : "COMND Inquiry",                                                # LAP (3), Inquiry_Len (1), Num_Responses (1)
         0x0402 : "COMND Inquiry_Cancel",
-        0x0403 : "COMND Periodic_Inquiry_Mode",
+        0x0403 : "COMND Periodic_Inquiry_Mode",                                  # 2, 2, LAP (3), Inquiry_Len (1), Num_Responses (1)
         0x0404 : "COMND Exit_Periodic_Inquiry_Mode",
-        0x0405 : "COMND Create_Connection",                # BD_ADDR (6), Packet_Type (2), 1, 1, 2, 1,
-        0x0406 : "COMND Disconnect",                       # Connection_Handle (12 bits)
-        0x0408 : "COMND Create_Connection_Cancel",         # BD_ADDR (6)
-        0x0409 : "COMND Accept_Connection_Request",        # BD_ADDR (6) role (1)
-        0x040a : "COMND Reject_Connection_Request",        # BD_ADDR (6), reason (1)
-        0x040b : "COMND Link_Key_Request_Reply",           # BD_ADDR (6), Link_Key (16)
-        0x040c : "COMND Link_Key_Request_Negative_Reply",
-        0x040d : "COMND PIN_Code_Request_Reply",
-        0x040e : "COMND PIN_Code_Request_Negative_Reply",
-        0x040f : "COMND Change_Connection_Packet_Type",
-        0x0411 : "COMND Authentication_Requested",
-        0x0413 : "COMND Set_Connection_Encryption ",
-        0x0415 : "COMND Change_Connection_Link_Key",
-        0x0417 : "COMND Master_Link_Key",
-        0x0419 : "COMND Remote_Name_Request",
-        0x041a : "COMND Remote_Name_Request_Cancel",
-        0x041b : "COMND Read_Remote_Supported_Features",
-        0x041c : "COMND Read_Remote_Extended_Features",
-        0x041d : "COMND Read_Remote_Version_Information",
-        0x041f : "COMND Read_Clock_Offset",
-        0x0420 : "COMND Read_LMP_Handle",
-        0x0428 : "COMND Setup_Synchronous_Connection",
-        0x0429 : "COMND Accept_Synchronous_Connection_Request",
-        0x042a : "COMND Reject_Synchronous_Connection_Request",
-        0x042b : "COMND IO_Capability_Request_Reply",
-        0x042c : "COMND User_Confirmation_Request_Reply",
-        0x042d : "COMND User_Confirmation_Request_Negative_Reply",
-        0x042e : "COMND User_Passkey_Request_Reply",
-        0x042f : "COMND User_Passkey_Request_Negative_Reply",
-        0x0430 : "COMND Remote_OOB_Data_Request_Reply",
-        0x0433 : "COMND Remote_OOB_Data_Request_Negative_Reply",
-        0x0434 : "COMND IO_Capability_Request_Negative_Reply",
-        0x0435 : "COMND Create_Physical_Link",
-        0x0436 : "COMND Accept_Physical_Link",
-        0x0437 : "COMND Disconnect_Physical_Link",
-        0x0438 : "COMND Create_Logical_Link",
-        0x0439 : "COMND Accept_Logical_Link",
-        0x043a : "COMND Disconnect_Logical_Link",
-        0x043b : "COMND Logical_Link_Cancel",
-        0x043c : "COMND Flow_Spec_Modify",
-        0x043d : "COMND Enhanced_Setup_Synchronous_Connection",
-        0x043e : "COMND Enhanced_Accept_Synchronous_Connection_Request",
-        0x043f : "COMND Truncated_Page",
-        0x0440 : "COMND Truncated_Page_Cancel",
+        0x0405 : "COMND Create_Connection",                                      # BD_ADDR (6), 2, 1, 1, 2, 1
+        0x0406 : "COMND Disconnect",                                             # Conn_Hdl (12 bits)
+        0x0408 : "COMND Create_Connection_Cancel",                               # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x0409 : "COMND Accept_Connection_Request",                              # BD_ADDR (6) role (1)
+        0x040a : "COMND Reject_Connection_Request",                              # BD_ADDR (6), reason (1)
+        0x040b : "COMND Link_Key_Request_Reply",                                 # BD_ADDR (6), Link_Key (16) -> Status (1), BD_ADDR (6)
+        0x040c : "COMND Link_Key_Request_Negative_Reply",                        # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x040d : "COMND PIN_Code_Request_Reply",                                 # BD_ADDR (6), PIN Len (1), PIN (16 ) -> Status (1), BD_ADDR (6)
+        0x040e : "COMND PIN_Code_Request_Negative_Reply",                        # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x040f : "COMND Change_Connection_Packet_Type",                          # Conn_Hdl (2), (2)
+        0x0411 : "COMND Authentication_Requested",                               # Conn_Hdl (2)
+        0x0413 : "COMND Set_Connection_Encryption ",                             # Conn_Hdl (2), EnableEncryption (1) --- 0x00 = Turn LL Encryption Off, 0x01 = Turn LL Encryption On
+        0x0415 : "COMND Change_Connection_Link_Key",                             # Conn_Hdl (2)
+        0x0417 : "COMND Master_Link_Key",                                        # Key_Flag (1) --- 0x00 = use semi-permanent link keys, 0x01 = use temp. link key
+        0x0419 : "COMND Remote_Name_Request",                                    # BD_ADDR (6), 1, 1, 2
+        0x041a : "COMND Remote_Name_Request_Cancel",                             # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x041b : "COMND Read_Remote_Supported_Features",                         # Conn_Hdl (2)
+        0x041c : "COMND Read_Remote_Extended_Features",                          # Conn_Hdl (2), 1
+        0x041d : "COMND Read_Remote_Version_Information",                        # Conn_Hdl (2)
+        0x041f : "COMND Read_Clock_Offset",                                      # Conn_Hdl (2)
+        0x0420 : "COMND Read_LMP_Handle",                                        # Conn_Hdl (2) -> Status (1), Conn_hdl (2), 1, 4
+        0x0428 : "COMND Setup_Synchronous_Connection",                           # Conn_Hdl (2), 4, 4, 2, 2, 1, 2
+        0x0429 : "COMND Accept_Synchronous_Connection_Request",                  # BD_ADDR (6), 4, 4, 2, 2, 1, 2
+        0x042a : "COMND Reject_Synchronous_Connection_Request",                  # BD_ADDR (6), Reason (1)
+        0x042b : "COMND IO_Capability_Request_Reply",                            # BD_ADDR (6), IO_Capability (1), 1, Authentication_Reqs (1) -> Status (1), BD_ADDR (6)
+        0x042c : "COMND User_Confirmation_Request_Reply",                        # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x042d : "COMND User_Confirmation_Request_Negative_Reply",               # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x042e : "COMND User_Passkey_Request_Reply",                             # BD_ADDR (6), Numeric_Value (4) -> Status (1), BD_ADDR (6)
+        0x042f : "COMND User_Passkey_Request_Negative_Reply",                    # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x0430 : "COMND Remote_OOB_Data_Request_Reply",                          # BD_ADDR (6), C (16), R (16) -> Status (1), BD_ADDR (6)
+        0x0433 : "COMND Remote_OOB_Data_Request_Negative_Reply",                 # BD_ADDR (6) -> Status (1), BD_ADDR (6)
+        0x0434 : "COMND IO_Capability_Request_Negative_Reply",                   # BD_ADDR (6), Reason (1) -> Status (1), BD_ADDR (6)
+        0x0435 : "COMND Create_Physical_Link",                                   # Phy_Link_Hdl (1), 1, 1, ...
+        0x0436 : "COMND Accept_Physical_Link",                                   # Phy_Link_Hdl (1), 1, 1, ...
+        0x0437 : "COMND Disconnect_Physical_Link",                               # Phy_Link_Hdl (1), Reason (1)
+        0x0438 : "COMND Create_Logical_Link",                                    # Phy_Link_Hdl (1), 16, 16
+        0x0439 : "COMND Accept_Logical_Link",                                    # Phy_Link_Hdl (1), 16, 16
+        0x043a : "COMND Disconnect_Logical_Link",                                # Logical_Link_Hdl (2)
+        0x043b : "COMND Logical_Link_Cancel",                                    # Logical_Link_Hdl (1), 1 -> Status (1), Phy_Link_Hdl (1), 1
+        0x043c : "COMND Flow_Spec_Modify",                                       # Conn_Hdl (2), 16, 16)
+        0x043d : "COMND Enhanced_Setup_Synchronous_Connection",                  # Conn_Hdl (2), ...
+        0x043e : "COMND Enhanced_Accept_Synchronous_Connection_Request",         # BD_ADDR (6), ...
+        0x043f : "COMND Truncated_Page",                                         # BD_ADDR (6), ...
+        0x0440 : "COMND Truncated_Page_Cancel",                                  # BD_ADDR (6), ...
         0x0441 : "COMND Set_Connectionless_Slave_Broadcast",
-        0x0442 : "COMND Set_Connectionless_Slave_Broadcast_Broadcast_Receive",
+        0x0442 : "COMND Set_Connectionless_Slave_Broadcast_Broadcast_Receive",   # Enable (1), BD_ADDR (6), ...
         0x0443 : "COMND Start_Synchronization_Train",
-        0x0444 : "COMND Receive_Synchronization_Train",
-        0x0445 : "COMND Remote_OOB_Extended_Data_Request_Reply",
+        0x0444 : "COMND Receive_Synchronization_Train",                          # BD_ADDR (6), ...
+        0x0445 : "COMND Remote_OOB_Extended_Data_Request_Reply",                 # BD_ADDR (6), ...
 
 # 7.2 LINK POLICY COMMANDS (OGF = 0x02)
-        0x0801 : "COMND Hold_Mode",
-        0x0803 : "COMND Sniff_Mode",
-        0x0804 : "COMND Exit_Sniff_Mode",
-        0x0805 : "COMND Park_State",
-        0x0806 : "COMND Exit_Park_State",
-        0x0807 : "COMND QoS_Setup",
-        0x0809 : "COMND Role_Discovery",
-        0x080b : "COMND Switch_Role",
-        0x080c : "COMND Read_Link_Policy_Settings",
-        0x080d : "COMND Write_Link_Policy_Settings",
+        0x0801 : "COMND Hold_Mode",                                              # Conn_Hdl (2), ...
+        0x0803 : "COMND Sniff_Mode",                                             # Conn_Hdl (2), ...
+        0x0804 : "COMND Exit_Sniff_Mode",                                        # Conn_Hdl (2), ...
+        0x0805 : "COMND Park_State",                                             # Conn_Hdl (2), ...
+        0x0806 : "COMND Exit_Park_State",                                        # Conn_Hdl (2), ...
+        0x0807 : "COMND QoS_Setup",                                              # Conn_Hdl (2), ...
+        0x0809 : "COMND Role_Discovery",                                         # Conn_Hdl (2), ... -> Status (1), Conn_Hdl (2), Current_Role (1)
+        0x080b : "COMND Switch_Role",                                            # BD_ADDR (6), Role (1)
+        0x080c : "COMND Read_Link_Policy_Settings",                              # Conn_Hdl (2) -> Status (1), Conn_Hdl (2)
+        0x080d : "COMND Write_Link_Policy_Settings",                             # Conn_Hdl (2) 2 -> Status (1), Conn_Hdl (2)
         0x080e : "COMND Read_Default_Link_Policy_Settings",
         0x080f : "COMND Write_Default_Link_Policy_Settings",
-        0x0810 : "COMND Flow_Specification",
-        0x0811 : "COMND Sniff_Subrating",
+        0x0810 : "COMND Flow_Specification",                                     # Conn_Hdl
+        0x0811 : "COMND Sniff_Subrating",                                        # Conn_Hdl, ... -> Status (1), Conn_Hdl (2)
 
 # 7.3 CONTROLLER & BASEBAND COMMANDS (OGF = 0x03)
         0x0c01 : "COMND Set_Event_Mask",

@@ -49,6 +49,8 @@ def i2h(val, leading0x=True, nbytes=1):
     @nbytes sets the number of (zero-padded) bytes to use in the formated hex string
     """
     if val is not None:
+        if type(val) == str:
+            return val
         if type(val) == bytes:
             val = BitArray(val)
             val = val.int
@@ -75,6 +77,7 @@ def b2h(bseq, delim=' ', reverse=False, leading0x=False):
     else:
         bseq = delim.join(f"{b:02X}" for b in bseq)
 
+    bseq = bseq.lower()
     return '0x' + bseq if leading0x else bseq
 
 def h2i(hexstr):
