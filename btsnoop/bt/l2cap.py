@@ -230,15 +230,15 @@ def parse_l2cap_data(l2cap_len, l2cap_cid, l2cap_data):
         att_handle = BitArray(att_data)[0:16] # select 1st two bytes (=16 bits)
         att_handle.byteswap([0,2], repeat=False) # need to swap first two bytes
         att_payload = BitArray(att_data)[16:] # leave byte-order alone in payload?
-        return pkts.ATT(att_opcode, att_handle.hex, att_payload.hex, att_data)
+        return pkts.ATT(att_opcode, att_handle.hex, att_payload.hex, att_data, l2cap_data)
 
-    elif l2cap_cid == L2CAP_CID_SMP:
+    elif l2cap_cid == L2CAP_CID_SMP or l2cap_cid == L2CAP_CID_LE_SMP:
         smp_code, smp_data = smp.parse(l2cap_data)
-        return pkts.SMP(smp_code, smp_data)
+        return pkts.SMP(smp_code, smp_data, l2cap_data)
 
     elif l2cap_cid == L2CAP_CID_SCH or l2cap_cid == L2CAP_CID_LE_SCH:
         sch_code, sch_id, sch_length, sch_data = parse_sch(l2cap_data)
-        return pkts.SCH(sch_code, sch_id, sch_length, sch_data)
+        return pkts.SCH(sch_code, sch_id, sch_length, sch_data, l2cap_data)
 
 # def parse(data):
 def parse(l2cap_pkt_type, data):

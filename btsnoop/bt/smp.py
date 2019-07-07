@@ -3,6 +3,7 @@ Parse SMP packets
 """
 import struct
 
+from . import hci
 
 """
 SMP PDUs

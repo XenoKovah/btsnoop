@@ -169,7 +169,7 @@ def pkt_bytes_to_hci_opcode(opcode_bytes):
     (i.e., a reference to the HCI COMMAND that warranted some HCI EVENT, where the EVENT is a response to the COMMAND)
     """
     assert(type(opcode_bytes) == bytes)
-    return b2h(struct.unpack("<BB", opcode_bytes), delim=' ', reverse=True)
+    return b2h(struct.unpack("<BB", opcode_bytes), delim='', reverse=True, leading0x=True)
 
 """
 Error Codes

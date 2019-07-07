@@ -13,7 +13,6 @@ from . import l2cap
 from . import att
 from . import smp
 
-
 """
 --------------------------------------------------------------------------------
                              HCI Command Packets
@@ -32,6 +31,10 @@ class CommandCreateConnection:
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.pkt_type = hci.b2h(self.pkt_type).lower()
+        self.mode = hci.i2h(self.mode).lower()
+        self.clk_offset = hci.b2h(self.clk_offset).lower()
+        self.allow_role_switch = hci.i2h(self.allow_role_switch).lower()
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
@@ -116,6 +119,13 @@ class CommandLECreateConnection:
             return f'Reserved for future use'
 
 @dataclass
+class CommandLECreateConnectionCancel:
+    rawbytes: str
+
+    def __post_init__(self):
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
 class CommandLEConnectionUpdate:
     hdl: bytes # 2
     conn_interval_min: bytes # 2
@@ -130,7 +140,6 @@ class CommandLEConnectionUpdate:
         assert(len(self.rawbytes) == 14)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
-
 
 @dataclass
 class CommandSwitchRole:
@@ -152,6 +161,74 @@ class CommandSwitchRole:
         else:
             return f'Unknown Role Change{code}'
 
+@dataclass
+class CommandLinkKeyRequestReply:
+    addr: str
+    link_key: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.link_key = hci.b2h(self.link_key).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandDeleteStoredLinkKey:
+    addr: str
+    delete_all_flag: str
+    rawbytes: str
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.delete_all_flag = hci.i2h(self.delete_all_flag).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+
+@dataclass
+class CommandReadRemoteVersionInformation:
+    hdl: bytes
+    rawbytes: str
+
+    def __post_init__(self):
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandSetEventFilter:
+    filter_type: bytes
+    rawbytes: str
+
+    def __post_init__(self):
+        self.filter_type = hci.i2h(self.filter_type).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandInquiry:
+    lap: bytes
+    inquiry_len: bytes
+    num_responses: bytes
+    rawbytes: str
+
+    def __post_init__(self):
+        self.lap = hci.b2h(self.lap).lower()
+        self.inquiry_len = hci.i2h(self.inquiry_len).lower()
+        self.num_responses = hci.i2h(self.num_responses).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLEStartEncryption:
+    hdl: bytes
+    rand_num: bytes
+    enc_div: bytes
+    long_term_key: bytes
+    rawbytes: str
+
+    def __post_init__(self):
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.rand_num = hci.b2h(self.rand_num).lower()
+        self.enc_div = hci.b2h(self.enc_div).lower()
+        self.long_term_key = hci.b2h(self.long_term_key).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 """
 --------------------------------------------------------------------------------
@@ -160,13 +237,21 @@ class CommandSwitchRole:
 """
 
 @dataclass
+class EventInquiryResult:
+    n: int
+    rawbytes: str
+
+    def __post_init__(self):
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
 class EventConnectionComplete:
     """
     """
     status: str
     hdl: str
     addr: str
-    lt: str
+    lt: str # lt = 0x01 = ACL (others should be investigated...)
     enc_enabled: bool
     rawbytes: str
 
@@ -183,7 +268,7 @@ class EventConnectionRequest:
     """
     addr: str
     cod: str
-    lt: str
+    lt: str # lt = 0x01 = ACL (others should be investigated...)
     rawbytes: str
 
     def __post_init__(self):
@@ -209,12 +294,18 @@ class EventDisconnectionComplete:
 
 @dataclass
 class EventCommandComplete:
+    num_cmd_pkts: int
     rescode: str
+    return_params: str
     rawbytes: str
 
     def __post_init__(self):
-        assert(len(self.rawbytes) > 2)
-        self.rescode = hci.pkt_bytes_to_hci_opcode(self.rescode)
+        self.num_cmd_pkts = hci.i2h(self.num_cmd_pkts)
+        self.rescode = hci.pkt_bytes_to_hci_opcode(self.rescode).lower()
+        self.cmdopcode = hci.h2i(self.rescode)
+        rescodestr = hci_cmd.HCI_COMMANDS[hci.h2i(self.rescode)]
+        self.rescode = f'{rescodestr} ({self.rescode})'
+        self.return_params = hci.b2h(self.return_params).lower()
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
@@ -559,20 +650,26 @@ class ATT:
     hdl: str
     payload: str
     data: str
-    opcodestr: str = None
+    rawbytes: str
+    # opcodestr: str = None
 
     def __post_init__(self):
-        self.opcodestr = att.opcode_to_str(self.opcode, verbose=True)
+        self.opcode = att.opcode_to_str(self.opcode, verbose=True)
+        # self.opcode = hci.i2h(self.opcode)
+        self.hdl = hci.i2h(self.hdl)
         self.rawbytes = hci.b2h(self.data)
 
 @dataclass
 class SMP:
     code: str
     data: str
-    codestr: str = None
+    rawbytes: str
+    # codestr: str = None
 
     def __post_init__(self):
-        self.codestr = smp.code_to_str(self.code, verbose=True)
+        self.code = smp.code_to_str(self.code, verbose=True)
+        # self.code = hci.i2h(self.code)
+        self.rawbytes = hci.b2h(self.data)
 
 @dataclass
 class SCH:
@@ -580,9 +677,13 @@ class SCH:
     id: str
     len: str
     data: str
+    rawbytes: str
     codestr: str = None
     l2cap_sch_evt: str = None
 
     def __post_init__(self):
-        self.codestr = l2cap.sch_code_to_str(self.code, verbose=True)
+        self.code = l2cap.sch_code_to_str(self.code, verbose=True)
+        self.id = hci.i2h(self.id)
+        self.len = hci.i2h(self.len, nbytes=2)
         self.l2cap_sch_evt = l2cap.parse_sch_data(self.code, self.id, self.data)
+        self.rawbytes = hci.b2h(self.data)

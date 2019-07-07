@@ -33,8 +33,15 @@ class CMD_HEADER( ctypes.Union ):
                 ("asbyte", c_uint)]
 
 HCI_COMMANDS = {
-
+#
 # 7.1 LINK CONTROL COMMANDS (OGF = 0x01)
+#
+# The Link Control commands allow a Controller to control connections to other
+# BR/EDR Controllers. Some Link Control commands are used only with a BR/ EDR
+# Controller whereas other Link Control commands are used only with an AMP Controller.
+#
+# In the LE Controller, Link Control commands are used to disconnect physical links.
+#
         0x0401 : "COMND Inquiry",                                                # LAP (3), Inquiry_Len (1), Num_Responses (1)
         0x0402 : "COMND Inquiry_Cancel",
         0x0403 : "COMND Periodic_Inquiry_Mode",                                  # 2, 2, LAP (3), Inquiry_Len (1), Num_Responses (1)
@@ -89,7 +96,12 @@ HCI_COMMANDS = {
         0x0444 : "COMND Receive_Synchronization_Train",                          # BD_ADDR (6), ...
         0x0445 : "COMND Remote_OOB_Extended_Data_Request_Reply",                 # BD_ADDR (6), ...
 
+#
 # 7.2 LINK POLICY COMMANDS (OGF = 0x02)
+#
+# The Link Policy Commands provide methods for the Host to affect how the
+# Link Manager manages the piconet.
+#
         0x0801 : "COMND Hold_Mode",                                              # Conn_Hdl (2), ...
         0x0803 : "COMND Sniff_Mode",                                             # Conn_Hdl (2), ...
         0x0804 : "COMND Exit_Sniff_Mode",                                        # Conn_Hdl (2), ...
@@ -105,7 +117,16 @@ HCI_COMMANDS = {
         0x0810 : "COMND Flow_Specification",                                     # Conn_Hdl
         0x0811 : "COMND Sniff_Subrating",                                        # Conn_Hdl, ... -> Status (1), Conn_Hdl (2)
 
+#
 # 7.3 CONTROLLER & BASEBAND COMMANDS (OGF = 0x03)
+#
+# The Controller & Baseband Commands provide access and control to various
+# capabilities of the Bluetooth hardware. These parameters provide control of
+# BR/EDR Controllers and of the capabilities of the Link Manager and Baseband in
+# the BR/EDR Controller, the PAL in an AMP Controller, and the Link Layer in an
+# LE Controller. The Host can use these commands to modify the behavior of the
+# local Controller.
+#
         0x0c01 : "COMND Set_Event_Mask",
         0x0c03 : "COMND Reset",
         0x0c05 : "COMND Set_Event_Filter",
@@ -113,9 +134,9 @@ HCI_COMMANDS = {
         0x0c09 : "COMND Read_PIN_Type",
         0x0c0a : "COMND Write_PIN_Type",
         0x0c0b : "COMND Create_New_Unit_Key",
-        0x0c0d : "COMND Read_Stored_Link_Key",
-        0x0c11 : "COMND Write_Stored_Link_Key",
-        0x0c12 : "COMND Delete_Stored_Link_Key",
+        0x0c0d : "COMND Read_Stored_Link_Key",                                   # BD_ADDR (6), Read_All_Flag (1)
+        0x0c11 : "COMND Write_Stored_Link_Key",                                  # Num_Keys_To_Write (1), BD_ADDRs/Link_Keys
+        0x0c12 : "COMND Delete_Stored_Link_Key",                                 # BD_Addr, Delete_All_Flag (1)
         0x0c13 : "COMND Write_Local_Name",
         0x0c14 : "COMND Read_Local_Name",
         0x0c15 : "COMND Read_Connection_Accept_Timeout",
@@ -130,8 +151,8 @@ HCI_COMMANDS = {
         0x0c1e : "COMND Write_Inquiry_Scan_Activity",
         0x0c1f : "COMND Read_Authentication_Enable",
         0x0c20 : "COMND Write_Authentication_Enable",
-        0x0c23 : "COMND Read_Class_of_Device",
-        0x0c24 : "COMND Write_Class_of_Device",
+        0x0c23 : "COMND Read_Class_of_Device",                                   # -> Status (1), COD (3)
+        0x0c24 : "COMND Write_Class_of_Device",                                  # COD (3) -> Status (1)
         0x0c25 : "COMND Read_Voice_Setting",
         0x0c26 : "COMND Write_Voice_Setting",
         0x0c27 : "COMND Read_Automatic_Flush_Timeout",
@@ -162,7 +183,7 @@ HCI_COMMANDS = {
         0x0c49 : "COMND Write_AFH_Channel_Assessment_Mode",
         0x0c51 : "COMND Read_Extended_Inquiry_Response",
         0x0c52 : "COMND Write_Extended_Inquiry_Response",
-        0x0c53 : "COMND Refresh_Encryption_Key",
+        0x0c53 : "COMND Refresh_Encryption_Key",                                 # Conn_Hdl (2)
         0x0c55 : "COMND Read_Simple_Pairing_Mode",
         0x0c56 : "COMND Write_Simple_Pairing_Mode",
         0x0c57 : "COMND Read_Local_OOB_Data",
@@ -206,7 +227,16 @@ HCI_COMMANDS = {
         0x0c80 : "COMND Read_Extended_Inquiry_Length",
         0x0c81 : "COMND Write_Extended_Inquiry_Length",
 
+#
 # 7.4 INFORMATIONAL PARAMETERS (OGF = 0x04)
+#
+# The Informational Parameters are fixed by the manufacturer of the Bluetooth
+# hardware. These parameters provide information about the BR/EDR Controller
+# and the capabilities of the Link Manager and Baseband in the BR/EDR Controller
+# and PAL in the AMP Controller.
+#
+# The host device cannot modify any of these parameters.
+#
         0x1001 : "COMND Read_Local_Version_Information",
         0x1002 : "COMND Read_Local_Supported_Commands",
         0x1003 : "COMND Read_Local_Supported_Features",
@@ -216,7 +246,14 @@ HCI_COMMANDS = {
         0x100a : "COMND Read_Data_Block_Size",
         0x100b : "COMND Read_Local_Supported_Codecs",
 
+#
 # 7.5 STATUS PARAMETERS (OGF = 0x05)
+#
+# The Controller modifies all status parameters. These parameters provide
+# information about the current state of the Link Manager and Baseband in the
+# BR/EDR Controller and the PAL in an AMP Controller. The host device cannot
+# modify any of these parameters other than to reset certain specific parameters.
+#
         0x1401 : "COMND Read_Failed_Contact_Counter",
         0x1402 : "COMND Reset_Failed_Contact_Counter",
         0x1403 : "COMND Read_Link_Quality",
@@ -230,7 +267,13 @@ HCI_COMMANDS = {
         0x140c : "COMND Get_MWS_Transport_Layer_Configuration",
         0x140d : "COMND Set_Triggered_Clock_Capture",
 
+#
 # 7.6 TESTING COMMANDS (OGF = 0x06)
+#
+# The Testing commands are used to provide the ability to test various
+# functional capabilities of the Bluetooth hardware. These commands provide
+# the ability to arrange various conditions for testing.
+#
         0x1801 : "COMND Read_Loopback_Mode",
         0x1802 : "COMND Write_Loopback_Mode",
         0x1803 : "COMND Enable_Device_Under_Test_Mode",
@@ -242,7 +285,13 @@ HCI_COMMANDS = {
 
 # 7.7 HCI Events (see hci_evt.py)
 
+#
 # 7.8 LE Commands (OGF = 0x08)
+#
+# The LE Controller Commands provide access and control to various capabilities
+# of the Bluetooth hardware, as well as methods for the Host to affect how the
+# Link Layer manages the piconet, and controls connections.
+#
         0x2001 : "COMND LE_Set_Event_Mask",
         0x2002 : "COMND LE_Read_Buffer_Size",
         0x2003 : "COMND LE_Read_Local_Supported_Features",
@@ -309,7 +358,7 @@ HCI_COMMANDS = {
         0xfd58 : "COMND VSC_BLE_TRACK_ADV",
         0xfd59 : "COMND VSC_BLE_ENERGY_INFO"
     }
-INV_HCI_COMMANDS_LOOKUP = dict(map(reversed, HCI_COMMANDS.items()))
+iHCI_COMMANDS = dict(map(reversed, HCI_COMMANDS.items()))
 
 """
 More Specific Parsing Routines.
@@ -371,55 +420,74 @@ def parse_cmd_data(opcode, data):
     """
     ## Non-LE Events ##################################################
 
-    if opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection"]:
+    if opcode == iHCI_COMMANDS["COMND Create_Connection"]:
         return CommandCreateConnection(data[0:6], data[6:8], data[8], data[9], data[10:12], data[12], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Disconnect"]:
+    elif opcode == iHCI_COMMANDS["COMND Disconnect"]:
         return CommandDisconnect(data[0:2], data[2], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Accept_Connection_Request"]:
+    elif opcode == iHCI_COMMANDS["COMND Accept_Connection_Request"]:
         return CommandAcceptConnectionRequest(data[0:6], data[6], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Switch_Role"]:
+    elif opcode == iHCI_COMMANDS["COMND Switch_Role"]:
         return CommandSwitchRole(data[0:6], data[6], data)
+    elif opcode == iHCI_COMMANDS["COMND Reject_Connection_Request"]:
+        return CommandRejectConnectionRequest(data[0:6], data[6], data)
 
     ## LE Events ######################################################
 
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Random_Address"]:
+    elif opcode == iHCI_COMMANDS["COMND LE_Set_Random_Address"]:
         return CommandLESetRandomAddress(data, data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Create_Connection"]:
+    elif opcode == iHCI_COMMANDS["COMND LE_Create_Connection"]:
         return CommandLECreateConnection(data[0:2], data[2:4], data[4], data[5], data[6:12], data[12], data[13:15], data[15:17], data[17:19], data[19:21], data[21:23], data[23:25], data)
-    elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Connection_Update"]:
+    elif opcode == iHCI_COMMANDS["COMND LE_Create_Connection_Cancel"]:
+        return CommandLECreateConnectionCancel(data)
+    elif opcode == iHCI_COMMANDS["COMND LE_Connection_Update"]:
         return CommandLEConnectionUpdate(data[0:2], data[2:4], data[4:6], data[6:8], data[8:10], data[10:12], data[12:14], data)
 
     ## Later.... ######################################################
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Create_Connection_Cancel"]:
-    #     pass
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Reject_Connection_Request"]:
-    #     pass
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Link_Key_Request_Reply"]:
-    #     pass
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND Read_Remote_Version_Information"]:
-    #     pass
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertising_Data"]:
+
+    elif opcode == iHCI_COMMANDS["COMND Inquiry"]:
+        return CommandInquiry(data[0:3], data[3], data[4], data)
+    elif opcode == iHCI_COMMANDS["COMND Read_Remote_Version_Information"]:
+        return CommandReadRemoteVersionInformation(data[0:2], data)
+    elif opcode == iHCI_COMMANDS["COMND Set_Event_Filter"]:
+        return CommandSetEventFilter(data[0], data)
+
+    elif opcode == iHCI_COMMANDS["COMND Link_Key_Request_Reply"]:
+        return CommandLinkKeyRequestReply(data[0:6], data[6:], data)
+    elif opcode == iHCI_COMMANDS["COMND Delete_Stored_Link_Key"]:
+        return CommandDeleteStoredLinkKey(data[0:6], data[6], data)
+
+    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Advertising_Data"]:
     #     return
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Responce_Data"]:
+    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Responce_Data"]:
     #     return
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Advertise_Enable"]:
+    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Advertise_Enable"]:
     #     return
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Parameters"]:
+    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Parameters"]:
     #     return
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Set_Scan_Enable"]:
+    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Enable"]:
     #     return
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Add_Device_To_White_List"]:
-    #     pass # 1 6
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_RemoveDevice_From_White_List"]:
-    #     pass # 1 6
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Read_Remote_Used_Features"]:
+    elif opcode == iHCI_COMMANDS["COMND LE_Add_Device_To_White_List"]:
+        return CommandLEAddDeviceToWhiteList(data[0], data[1:7], data)
+    elif opcode == iHCI_COMMANDS["COMND LE_Add_Device_To_White_List"]:
+        return CommandLERemoveDeviceFromWhiteList(data[0], data[1:7], data)
+    # elif opcode == iHCI_COMMANDS["COMND LE_Read_Remote_Used_Features"]:
     #     pass # 2 (connection handle)
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Encrypt"]:
-    #     pass # 16 (key), 16 (data) # >>> will receive an event with status and data encrypted (if command succeeded).
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Start_Encryption"]:
-    #     pass # 2 (handle), 8 (rand. num), 2 (encrypted diversifier), 16 (LTK)
-    # elif opcode == INV_HCI_COMMANDS_LOOKUP["COMND LE_Long_Term_Key_Request_Reply"]:
-    #     pass # 2 (handle), 16 (LTK)
+    elif opcode == iHCI_COMMANDS["COMND LE_Encrypt"]:
+        return CommandLEEncrypt(data[0:16], data[16:], data) # >>> 16 (key), 16 (data); will receive an event with status and data encrypted (if command succeeded).
+    elif opcode == iHCI_COMMANDS["COMND LE_Start_Encryption"]:
+        return CommandLEStartEncryption(data[0:2], data[2:10], data[10:12], data[12:], data) # 2 (handle), 8 (rand. num), 2 (encrypted diversifier), 16 (LTK)
+    elif opcode == iHCI_COMMANDS["COMND LE_Long_Term_Key_Request_Reply"]:
+        return CommandLELongTermKeyRequestReply(data[0:2], data[2:], data) # 2 (handle), 16 (LTK)
+    elif opcode == iHCI_COMMANDS["COMND LE_Add_Device_To_Resolving_List"]:
+        return CommandLEAddDeviceToResolvingList(data[0], data[1:7], data[7:23], data[23:39], data) # peer ID type, peer ID addr, peer IRK, local IRK
+    elif opcode == iHCI_COMMANDS["COMND LE_Remove_Device_From_Resolving_List"]:
+        return CommandLERemoveDeviceFromResolvingList(data[0], data[1:7], data) # peer ID type, peer ID addr
+    elif opcode == iHCI_COMMANDS["COMND LE_Clear_Resolving_list"]:
+        return CommandLEClearResolvingList(data)
+    elif opcode == iHCI_COMMANDS["COMND LE_Read_Peer_Resolvable_Address"]:
+        return CommandLEReadPeerResolvableAddress(data[0], data[1:7], data) # peer ID type, peer ID addr
+    elif opcode == iHCI_COMMANDS["COMND LE_Read_Local_Resolvable_Address"]:
+        return CommandLEReadLocalResolvableAddress(data[0], data[1:7], data) # peer ID type, peer ID addr
 
 
 def parse(data):

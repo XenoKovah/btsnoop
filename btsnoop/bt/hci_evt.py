@@ -101,7 +101,7 @@ References can be found here:
 """
 HCI_EVENTS = {
         0x01 : "EVENT Inquiry_Complete",
-        0x02 : "EVENT Inquiry_Result",
+        0x02 : "EVENT Inquiry_Result", # Num_Responses (1), BD_ADDRs (N*6), (N*1), (N*1), (N*1), COD (N*3), (N*2)
         0x03 : "EVENT Connection_Complete",    # 1, Connection_Handle (12 bits), BD_ADDR (6), Link_Type (1), Encryption_Enabled (1)
         0x04 : "EVENT Connection_Request",     # BD_ADDR (6), Class_of_Device (3), Link_Type (1)
         0x05 : "EVENT Disconnection_Complete", # 1, Connection_Handle (12 bits), reason (1)
@@ -195,9 +195,9 @@ def e2s(evtcode, subevtcode, verbose=False):
     """
     s = ''
     if evtcode in HCI_EVENTS:
-        s += f'{HCI_EVENTS[evtcode]} (0x{evtcode:02x}) '
+        s += f'{HCI_EVENTS[evtcode]} (0x{evtcode:02x})'
     if subevtcode in HCI_LE_META_EVENTS:
-        s += f'{HCI_LE_META_EVENTS[subevtcode]} (0x{subevtcode:02x})'
+        s += f' {HCI_LE_META_EVENTS[subevtcode]} (0x{subevtcode:02x})'
     return s
 
 def evt_to_str(evtcode):
@@ -276,6 +276,29 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     ### Parse Non-LE Events
     ###
 
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Inquiry_Result"]:
+        # TODO: FINISH ME - twp 07/05/2019
+        # TODO: FINISH ME - twp 07/05/2019
+        # TODO: FINISH ME - twp 07/05/2019
+        # TODO: FINISH ME - twp 07/05/2019
+        # TODO: FINISH ME - twp 07/05/2019
+        # TODO: FINISH ME - twp 07/05/2019
+        # TODO: FINISH ME - twp 07/05/2019
+        n_start, n_end = 0, 1
+        addrs_start, addrs_end = n_end, n_end+n*6+1
+        pg_scan_start, pg_scan_end = addrs_end, addrs_end+n*1+1
+        res1_start, res1_end = pg_scan_end, pg_scan_end+n*1+1
+        res2_start, res2_end = res1_end, res1_end+n*1+1
+        cod_start, cod_end = res2_end, res2_end+n*3+1
+        clkoff_start, clkoff_end = cod_end, cod_end+n*2+1
+
+        n = data[n_start:n_end]
+        addrs = data[addrs_start:addrs_end]
+        cods = data[cod_start:cod_end]
+
+        # return EventInquiryResult(n, data[addrs_start:addrs_end], data)
+        return EventInquiryResult(n, data)
+
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Complete"]:
         return EventConnectionComplete(data[0], data[1:3], data[3:9], data[9], data[10], data)
 
@@ -286,7 +309,7 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
         return EventDisconnectionComplete(data[0], data[1:3], data[3], data)
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Complete"]:
-        return EventCommandComplete(data[1:3], data)
+        return EventCommandComplete(data[0], data[1:3], data[3:], data)
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Status"]:
         return EventCommandStatus(data[0], data[1], data[2:4], data)
