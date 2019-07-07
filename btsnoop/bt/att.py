@@ -100,7 +100,7 @@ def opcode_to_str(opcode, verbose=False):
     Return a string representing the ATT PDU opcode
     """
     if opcode in ATT_PDUS:
-        opstr = f' [opcode={hci.i2h(opcode)} ({opcode})]' if verbose else ''
+        opstr = f' ({hci.i2h(opcode)})' if verbose else ''
         return f'{ATT_PDUS[opcode]}{opstr}'
     else:
         return f"UNKNOWN OPCODE ({opcode})"

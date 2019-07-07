@@ -651,25 +651,23 @@ class ATT:
     payload: str
     data: str
     rawbytes: str
-    # opcodestr: str = None
 
     def __post_init__(self):
         self.opcode = att.opcode_to_str(self.opcode, verbose=True)
-        # self.opcode = hci.i2h(self.opcode)
-        self.hdl = hci.i2h(self.hdl)
-        self.rawbytes = hci.b2h(self.data)
+        self.hdl = hci.i2h(hci.h2i(self.hdl), nbytes=2)
+        self.data = hci.b2h(self.data)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class SMP:
     code: str
     data: str
     rawbytes: str
-    # codestr: str = None
 
     def __post_init__(self):
         self.code = smp.code_to_str(self.code, verbose=True)
-        # self.code = hci.i2h(self.code)
-        self.rawbytes = hci.b2h(self.data)
+        self.data = hci.b2h(self.data)
+        self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class SCH:
@@ -678,12 +676,12 @@ class SCH:
     len: str
     data: str
     rawbytes: str
-    codestr: str = None
     l2cap_sch_evt: str = None
 
     def __post_init__(self):
         self.code = l2cap.sch_code_to_str(self.code, verbose=True)
         self.id = hci.i2h(self.id)
         self.len = hci.i2h(self.len, nbytes=2)
+        self.data = hci.b2h(self.data)
+        self.rawbytes = hci.b2h(self.rawbytes)
         self.l2cap_sch_evt = l2cap.parse_sch_data(self.code, self.id, self.data)
-        self.rawbytes = hci.b2h(self.data)

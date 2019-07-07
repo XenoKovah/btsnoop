@@ -84,9 +84,10 @@ def h2i(hexstr):
     """
     Convert hex-formated string to its corresponding value.
     """
-    assert(type(hexstr) == str)
-    hexstr = hexstr.replace(' ', '') # remove any spaces in the hex string
-    return int(hexstr, 16)
+    if hexstr:
+        assert(type(hexstr) == str)
+        hexstr = hexstr.replace(' ', '') # remove any spaces in the hex string
+        return int(hexstr, 16)
 
 def b2si(byte):
     """Byte to Signed Integer."""

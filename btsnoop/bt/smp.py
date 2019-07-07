@@ -55,7 +55,7 @@ def code_to_str(code, verbose=False):
     Return a string representing the SMP code
     """
     if code in SMP_PDUS:
-        opstr = f' [code={hci.i2h(code)} ({code})]' if verbose else ''
+        opstr = f' ({hci.i2h(code)})' if verbose else ''
         return f'{SMP_PDUS[code]}{opstr}'
     else:
         return f"UNKNOWN CODE ({code})"
