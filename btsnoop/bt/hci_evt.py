@@ -57,10 +57,7 @@ LE_META_EVENT:
 -------------------------------------------------
 |   event code  |    length     | subevent code |
 -------------------------------------------------
-"""
 
-
-"""
 The HCI LE Meta Event is used to encapsulate all LE Controller specific events.
 The Event Code of all LE Meta Events shall be 0x3E. The Subevent_Code is
 the first octet of the event parameters. The Subevent_Code shall be set to one
@@ -68,13 +65,10 @@ of the valid Subevent_Codes from an LE specific event
 """
 HCI_LE_META_EVENT = 0x3e;
 
-
 """
 HCI LE Meta events
 
-References can be found here:
-* https://www.bluetooth.org/en-us/specification/adopted-specifications - Core specification 4.1
-** [vol 2] Part E (Section 7.7.65) - Le Meta Event
+BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 929
 """
 HCI_LE_META_EVENTS = {  # Subevent Codes
         0x01 : "LE_EVENT LE_Connection_Complete", # Status (1), Connection_Handle (12 bits), Role (1), Peer_Address_Type (1), Peer_Address (6), Conn_Interval (2), Conn_Latency (2), Supervision_Timeout (2), Master_Clock_Accuracy (1)
@@ -95,9 +89,7 @@ INV_HCI_LE_META_EVENTS_LOOKUP = dict(map(reversed, HCI_LE_META_EVENTS.items()))
 """
 HCI Event codes
 
-References can be found here:
-* https://www.bluetooth.org/en-us/specification/adopted-specifications - Core specification 4.1
-** [vol 2] Part E (Section 7.7) - Events
+BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 843
 """
 HCI_EVENTS = {
         0x01 : "EVENT Inquiry_Complete",
@@ -219,41 +211,6 @@ def subevt_to_str(subevtcode):
     # return HCI_LE_META_EVENTS[subevtcode]
     return f'{HCI_LE_META_EVENTS[subevtcode]} (0x{subevtcode:02x})'
 
-
-# def le_evttype_to_str(evttype):
-#     """
-#     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 932
-#     """
-#     if evttype == 0x00:
-#         return f'Connectable undirected advertising (ADV_IND)'
-#     elif evttype == 0x01:
-#         return f'Connectable directed advertising (ADV_DIRECT_IND)'
-#     elif evttype == 0x02:
-#         return f'Scannable undirected advertising (ADV_SCAN_IND)'
-#     elif evttype == 0x03:
-#         return f'Non connectable undirected advertising (ADV_NONCONN_IND)'
-#     elif evttype == 0x04:
-#         return f'Scan Response (SCAN_RSP)'
-#     else:
-#         return f'Reserved for future use'
-#
-#
-# def le_addrtype_to_str(addrtype):
-#     """
-#     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 933
-#     """
-#     if addrtype == 0x00:
-#         return f'Public Device Address'
-#     elif addrtype == 0x01:
-#         return f'Random Device Address'
-#     elif addrtype == 0x02:
-#         return f'Public Identity Address' # (Corresponds to Resolved Private Address)
-#     elif addrtype == 0x03:
-#         return f'Random (static) Identity Address' # (Corresponds to Resolved Private Address)
-#     else:
-#         return f'Reserved for future use'
-
-
 """
 Specific Parsing Routines.
 
@@ -277,27 +234,65 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
     ###
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Inquiry_Result"]:
-        # TODO: FINISH ME - twp 07/05/2019
-        # TODO: FINISH ME - twp 07/05/2019
-        # TODO: FINISH ME - twp 07/05/2019
-        # TODO: FINISH ME - twp 07/05/2019
-        # TODO: FINISH ME - twp 07/05/2019
-        # TODO: FINISH ME - twp 07/05/2019
-        # TODO: FINISH ME - twp 07/05/2019
-        n_start, n_end = 0, 1
-        addrs_start, addrs_end = n_end, n_end+n*6+1
-        pg_scan_start, pg_scan_end = addrs_end, addrs_end+n*1+1
-        res1_start, res1_end = pg_scan_end, pg_scan_end+n*1+1
-        res2_start, res2_end = res1_end, res1_end+n*1+1
-        cod_start, cod_end = res2_end, res2_end+n*3+1
-        clkoff_start, clkoff_end = cod_end, cod_end+n*2+1
-
-        n = data[n_start:n_end]
-        addrs = data[addrs_start:addrs_end]
-        cods = data[cod_start:cod_end]
-
-        # return EventInquiryResult(n, data[addrs_start:addrs_end], data)
-        return EventInquiryResult(n, data)
+        n = data[0] # num_responses
+        _data = data[1:]
+        offset = 14 # 1 inquiry responses contains 14 bytes
+        responses = list()
+        for k in range(n):
+            i, j = k*offset, k*offset+6
+            bdaddr = data[i:j]
+            i, j = j, j+1
+            pg_scan_mode = data[i:j]
+            i, j = j, j+2 # handle both reserved bits here
+            reserved = data[i:j]
+            i, j = j, j+3
+            cod = data[i:j]
+            i, j = j, j+2
+            clk_offset = data[i:j]
+            responses.append((bdaddr, pg_scan_mode, cod, clk_offset))
+        return EventInquiryResult(n, responses, data)
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Inquiry_Result_with_RSSI"]:
+        n = data[0] # num_responses
+        _data = data[1:]
+        offset = 14 # 1 inquiry responses contains 14 bytes
+        responses = list()
+        for k in range(n):
+            i, j = k*offset, k*offset+6
+            bdaddr = data[i:j]
+            i, j = j, j+1
+            pg_scan_mode = data[i:j]
+            i, j = j, j+1
+            reserved = data[i:j]
+            i, j = j, j+3
+            cod = data[i:j]
+            i, j = j, j+2
+            clk_offset = data[i:j]
+            i, j = j, j+1
+            rssi = data[i:j]
+            responses.append((bdaddr, pg_scan_mode, cod, clk_offset, rssi))
+        return EventInquiryResultWithRSSI(n, responses, data)
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Extended_Inquiry_Result"]:
+        n = data[0] # num_responses
+        _data = data[1:]
+        offset = 240+14 # 1 inquiry responses contains 14 bytes
+        responses = list()
+        for k in range(n):
+            i, j = k*offset, k*offset+6
+            bdaddr = hci.pkt_bytes_to_bdaddr(data[i:j])
+            i, j = j, j+1
+            pg_scan_mode = hci.b2h(data[i:j])
+            i, j = j, j+1
+            reserved = hci.b2h(data[i:j])
+            i, j = j, j+3
+            cod = hci.pkt_bytes_to_cod(data[i:j])
+            i, j = j, j+2
+            clk_offset = hci.b2h(data[i:j])
+            i, j = j, j+1
+            rssi = data[i:j]
+            i, j = j, j+240
+            extended_inquiry_response = hci.b2h(data[i:j])
+            responses.append((bdaddr, pg_scan_mode, cod, clk_offset, rssi, extended_inquiry_response))
+        return EventExtendedInquiryResult(n, responses, data)
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Connection_Complete"]:
         return EventConnectionComplete(data[0], data[1:3], data[3:9], data[9], data[10], data)
@@ -307,6 +302,12 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Disconnection_Complete"]:
         return EventDisconnectionComplete(data[0], data[1:3], data[3], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Remote_Name_Request_Complete"]:
+        return EventRemoteNameRequestComplete(data[0], data[1:7], data[7:], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Read_Remote_Version_Information_Complete"]:
+        return EventReadRemoteVersionInformationComplete(data[0], data[1:3], data[3], data[4:6], data[6:8], data)
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Command_Complete"]:
         return EventCommandComplete(data[0], data[1:3], data[3:], data)
@@ -319,6 +320,18 @@ def parse_evt_data(hci_evt_evtcode, hci_evt_subevtcode, data):
 
     if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Logical_Link_Complete"]:
         return EventLogicalLinkComplete(data[0], data[1:3], data[3], data[4], data)
+
+    if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Number_Of_Completed_Packets"]:
+        n = data[0] # number of handles
+        offset = 4 # each response is a total of 4 bytes (2 for the handle, 2 for the num. completed bytes.)
+        hdls_and_pkts = list()
+        for i in range(n):
+            j = i*offset+1
+            hdl = hci.b2h(data[j:j+2])
+            npkts = hci.b2h(data[j+2:j+4])
+            hdls_and_pkts.append((hdl, npkts))
+        return EventNumberOfCompletedPackets(n, hdls_and_pkts, data)
+
 
     # if hci_evt_evtcode == INV_HCI_EVENTS_LOOKUP["EVENT Disconnection_Logical_Link_Complete"]:
     #     return EventDisconnectionLogicalLinkComplete(data[0], data[1:3], data[3], data)

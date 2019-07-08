@@ -5,6 +5,7 @@ make unpacking snooped packet information easy and portable.
 
 from dataclasses import dataclass
 from bitstring import BitStream, BitArray
+import struct
 
 from . import hci
 from . import hci_cmd
@@ -15,19 +16,50 @@ from . import smp
 
 """
 --------------------------------------------------------------------------------
+                                  Helpers
+--------------------------------------------------------------------------------
+"""
+
+def addrtype2str(type_):
+    code = f' ({hci.i2h(type_)})'
+    if type_ == 0x00:
+        return f'Public{code}'
+    elif type_ == 0x01:
+        return f'Random{code}'
+    elif type_ == 0x02:
+        return f'Resolvable{code}'
+    elif type_ == 0x03:
+        return f'Resolvable (Rand. Default){code}'
+    else:
+        return f'Reserved for future use'
+
+def role2str(role):
+    """
+    E.g., See: BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
+    """
+    code = f' ({hci.i2h(role)})'
+    if role == 0x00:
+        return f'Master{code}'
+    elif role == 0x01:
+        return f'Slave{code}'
+    else:
+        return f'Unknown Role {code}'
+
+"""
+--------------------------------------------------------------------------------
                              HCI Command Packets
 --------------------------------------------------------------------------------
 """
 
 @dataclass
 class CommandCreateConnection:
-    addr: str # 6
-    pkt_type: str
-    mode: str
-    reserved: str
-    clk_offset: str
-    allow_role_switch: str
-    rawbytes: str
+    addr: bytes
+    pkt_type: bytes
+    mode: bytes
+    reserved: bytes
+    clk_offset: bytes
+    allow_role_switch: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
@@ -39,9 +71,9 @@ class CommandCreateConnection:
 
 @dataclass
 class CommandDisconnect:
-    hdl: bytes # 2
-    reason: bytes #1
-    rawbytes: str
+    hdl: bytes
+    reason: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 3)
@@ -51,18 +83,33 @@ class CommandDisconnect:
 
 @dataclass
 class CommandAcceptConnectionRequest:
-    addr: str # 6
-    role: str
-    rawbytes: str
+    addr: bytes
+    role: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
+class CommandSwitchRole:
+    addr: bytes
+    role: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.role = role2str(self.role)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandRejectConnectionRequest:
+    pass
+
+@dataclass
 class CommandLESetRandomAddress:
-    addr: str # 6
-    rawbytes: str
+    addr: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 6)
@@ -71,70 +118,44 @@ class CommandLESetRandomAddress:
 
 @dataclass
 class CommandLECreateConnection:
-    scan_interval: bytes # 2
-    scan_window: bytes # 2
-    init_filter_policy: bytes # 1
-    peer_addr_type: bytes # 1
-    peer_addr: bytes # 6
-    own_addr_type: bytes # 1
-    conn_interval_min: bytes # 2
-    conn_interval_max: bytes # 2
-    conn_latency: bytes # 2
-    supervision_timeout: bytes # 2
-    min_ce_len: bytes # 2
-    max_ce_len: bytes # 2
-    rawbytes: str
+    scan_interval: bytes
+    scan_window: bytes
+    init_filter_policy: bytes
+    peer_addr_type: bytes
+    peer_addr: bytes
+    own_addr_type: bytes
+    conn_interval_min: bytes
+    conn_interval_max: bytes
+    conn_latency: bytes
+    supervision_timeout: bytes
+    min_ce_len: bytes
+    max_ce_len: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 25)
-        self.peer_addr_type = self.peeraddrtype2str()
+        self.peer_addr_type = addrtype2str(self.peer_addr_type)
         self.peer_addr = hci.pkt_bytes_to_bdaddr(self.peer_addr)
-        self.own_addr_type = self.ownaddrtype2str()
+        self.own_addr_type = addrtype2str(self.own_addr_type)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-    def peeraddrtype2str(self):
-        code = f' ({hci.i2h(self.peer_addr_type)})'
-        if self.peer_addr_type == 0x00:
-            return f'Public{code}'
-        elif self.peer_addr_type == 0x01:
-            return f'Random{code}'
-        elif self.peer_addr_type == 0x02:
-            return f'Public Identity Address (Resolvable){code}'
-        elif self.peer_addr_type == 0x03:
-            return f'Random (Static) Identity Address (Resolvable){code}'
-        else:
-            return f'Reserved for future use'
-
-    def ownaddrtype2str(self):
-        code = f' ({hci.i2h(self.own_addr_type)})'
-        if self.own_addr_type == 0x00:
-            return f'Public{code}'
-        elif self.own_addr_type == 0x01:
-            return f'Random{code}'
-        elif self.own_addr_type == 0x02:
-            return f'Controller-Generated Resolvable Address (Based on local IRK; default: use Public Addr){code}'
-        elif self.own_addr_type == 0x03:
-            return f'Controller-Generated Resolvable Address (Based on local IRK; default: use Random Addr){code}'
-        else:
-            return f'Reserved for future use'
 
 @dataclass
 class CommandLECreateConnectionCancel:
-    rawbytes: str
+    rawbytes: bytes
 
     def __post_init__(self):
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
 class CommandLEConnectionUpdate:
-    hdl: bytes # 2
-    conn_interval_min: bytes # 2
-    conn_interval_max: bytes # 2
-    conn_latency: bytes # 2
-    supervision_timeout: bytes # 2
-    min_ce_len: bytes # 2
-    max_ce_len: bytes # 2
-    rawbytes: str
+    hdl: bytes
+    conn_interval_min: bytes
+    conn_interval_max: bytes
+    conn_latency: bytes
+    supervision_timeout: bytes
+    min_ce_len: bytes
+    max_ce_len: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 14)
@@ -142,72 +163,11 @@ class CommandLEConnectionUpdate:
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
-class CommandSwitchRole:
-    addr: str
-    role: str
-    rawbytes: str
-
-    def __post_init__(self):
-        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.role = self.role2str()
-        self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-    def role2str(self):
-        code = f' ({hci.i2h(self.role)})'
-        if self.role == 0x00:
-            return f'Change Own Role to Master{code}'
-        elif self.role == 0x01:
-            return f'Change Own Role to Slave{code}'
-        else:
-            return f'Unknown Role Change{code}'
-
-@dataclass
-class CommandLinkKeyRequestReply:
-    addr: str
-    link_key: str
-    rawbytes: str
-
-    def __post_init__(self):
-        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.link_key = hci.b2h(self.link_key).lower()
-        self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-@dataclass
-class CommandDeleteStoredLinkKey:
-    addr: str
-    delete_all_flag: str
-    rawbytes: str
-
-    def __post_init__(self):
-        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.delete_all_flag = hci.i2h(self.delete_all_flag).lower()
-        self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-
-@dataclass
-class CommandReadRemoteVersionInformation:
-    hdl: bytes
-    rawbytes: str
-
-    def __post_init__(self):
-        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
-        self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-@dataclass
-class CommandSetEventFilter:
-    filter_type: bytes
-    rawbytes: str
-
-    def __post_init__(self):
-        self.filter_type = hci.i2h(self.filter_type).lower()
-        self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-@dataclass
 class CommandInquiry:
     lap: bytes
     inquiry_len: bytes
     num_responses: bytes
-    rawbytes: str
+    rawbytes: bytes
 
     def __post_init__(self):
         self.lap = hci.b2h(self.lap).lower()
@@ -216,12 +176,78 @@ class CommandInquiry:
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
+class CommandReadRemoteVersionInformation:
+    hdl: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandSetEventFilter:
+    filter_type: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.filter_type = hci.i2h(self.filter_type).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLinkKeyRequestReply:
+    addr: bytes
+    link_key: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.link_key = hci.b2h(self.link_key).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandDeleteStoredLinkKey:
+    addr: bytes
+    delete_all_flag: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.delete_all_flag = hci.i2h(self.delete_all_flag).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLEAddDeviceToWhiteList:
+    addr_type: bytes
+    addr: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.addr_type = addrtype2str(self.addr_type)
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLERemoveDeviceFromWhiteList:
+    addr_type: bytes
+    addr: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.addr_type = addrtype2str(self.addr_type)
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLEEncrypt:
+    pass
+
+@dataclass
 class CommandLEStartEncryption:
     hdl: bytes
     rand_num: bytes
     enc_div: bytes
     long_term_key: bytes
-    rawbytes: str
+    rawbytes: bytes
 
     def __post_init__(self):
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
@@ -229,6 +255,30 @@ class CommandLEStartEncryption:
         self.enc_div = hci.b2h(self.enc_div).lower()
         self.long_term_key = hci.b2h(self.long_term_key).lower()
         self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLELongTermKeyRequestReply:
+    pass
+
+@dataclass
+class CommandLEAddDeviceToResolvingList:
+    pass
+
+@dataclass
+class CommandLERemoveDeviceFromResolvingList:
+    pass
+
+@dataclass
+class CommandLEClearResolvingList:
+    pass
+
+@dataclass
+class CommandLEReadPeerResolvableAddress:
+    pass
+
+@dataclass
+class CommandLEReadLocalResolvableAddress:
+    pass
 
 """
 --------------------------------------------------------------------------------
@@ -238,38 +288,72 @@ class CommandLEStartEncryption:
 
 @dataclass
 class EventInquiryResult:
-    n: int
-    rawbytes: str
+    """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 844
+    """
+    num_responses: bytes
+    responses: bytes # should be a list of responses
+    rawbytes: bytes
 
     def __post_init__(self):
+        self.num_responses = hci.i2h(self.num_responses)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class EventInquiryResultWithRSSI:
+    """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 886
+    """
+    num_responses: bytes
+    responses: bytes # should be a list of responses
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.num_responses = hci.i2h(self.num_responses)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class EventExtendedInquiryResult:
+    """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 896
+    """
+    num_responses: bytes
+    responses: bytes # should be a list of responses
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.num_responses = hci.i2h(self.num_responses)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
 class EventConnectionComplete:
     """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 846
     """
-    status: str
-    hdl: str
-    addr: str
-    lt: str # lt = 0x01 = ACL (others should be investigated...)
-    enc_enabled: bool
-    rawbytes: str
+    status: bytes
+    hdl: bytes
+    addr: bytes
+    lt: bytes # lt = 0x01 = ACL (others should be investigated...)
+    enc_enabled: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 11)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.lt = hci.i2h(self.lt)
+        self.enc_enabled = hci.i2h(self.enc_enabled)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
 class EventConnectionRequest:
     """
+    BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 848
     """
-    addr: str
-    cod: str
-    lt: str # lt = 0x01 = ACL (others should be investigated...)
-    rawbytes: str
+    addr: bytes
+    cod: bytes
+    lt: bytes # lt = 0x01 = ACL (others should be investigated...)
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 10)
@@ -282,10 +366,10 @@ class EventConnectionRequest:
 class EventDisconnectionComplete:
     """
     """
-    status: str
-    hdl: str
-    reason: str
-    rawbytes: str
+    status: bytes
+    hdl: bytes
+    reason: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
@@ -293,66 +377,84 @@ class EventDisconnectionComplete:
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
+class EventRemoteNameRequestComplete:
+    status: bytes
+    addr: bytes
+    name: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
+        self.name = self.name.decode("utf-8")
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class EventReadRemoteVersionInformationComplete:
+    status: bytes
+    hdl: bytes
+    version: bytes
+    manufacturer_name: bytes
+    subversion: bytes
+    rawbytes: bytes
+
+    def __post_init__(self):
+        self.status = hci.i2h(self.status, nbytes=1)
+        self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
+        self.version = hci.i2h(self.status, nbytes=1)
+        self.subversion = hci.i2h(self.status, nbytes=2)
+        # see: https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/
+        self.manufacturer_name = hci.b2h(struct.unpack("<BB", self.manufacturer_name), delim='', reverse=True, leading0x=True)
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
 class EventCommandComplete:
-    num_cmd_pkts: int
-    rescode: str
-    return_params: str
-    rawbytes: str
+    num_cmd_pkts: bytes
+    rescode: bytes
+    return_params: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.num_cmd_pkts = hci.i2h(self.num_cmd_pkts)
         self.rescode = hci.pkt_bytes_to_hci_opcode(self.rescode).lower()
         self.cmdopcode = hci.h2i(self.rescode)
-        rescodestr = hci_cmd.HCI_COMMANDS[hci.h2i(self.rescode)]
-        self.rescode = f'{rescodestr} ({self.rescode})'
-        self.return_params = hci.b2h(self.return_params).lower()
+        self.rescode = hci_cmd.cmd_to_str(hci.h2i(self.rescode))
+        status = self.return_params[0]
+        self.return_params = f'({hci.ERROR_CODES[status]} = {hci.i2h(status)}) {hci.b2h(self.return_params).lower()}'
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
 class EventCommandStatus:
-    status: str
-    num_cmd_pkts: str
-    opcode: str
-    rawbytes: str
+    status: bytes
+    num_cmd_pkts: bytes
+    opcode: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) > 2)
         self.status = hci.i2h(self.status, nbytes=1)
         self.num_cmd_pkts = hci.i2h(self.num_cmd_pkts, nbytes=1)
-        self.opcode = hci.pkt_bytes_to_hci_opcode(self.opcode).lower()
-        opcode_str = hci_cmd.HCI_COMMANDS[hci.h2i(self.opcode)]
-        self.opcode = f'{opcode_str} ({self.opcode})'
+        self.opcode = hci_cmd.cmd_to_str(self.opcode)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
 class EventRoleChange:
-    status: str
-    addr: str
-    role: str
-    rawbytes: str
+    status: bytes
+    addr: bytes
+    role: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.role = self.role2str()
+        self.role = role2str(self.role)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-    def role2str(self):
-        code = f' ({hci.i2h(self.role)})'
-        if self.role == 0x00:
-            return f'New Role: Master{code}'
-        elif self.role == 0x01:
-            return f'New Role: Slave{code}'
-        else:
-            return f'Unknown Role Change{code}'
-
 
 @dataclass
 class EventLogicalLinkComplete:
-    status: str
-    llhdl: str # logical link handle
-    plhdl: str # physical link handle
-    txflowID: str
-    rawbytes: str
+    status: bytes
+    llhdl: bytes # logical link handle
+    plhdl: bytes # physical link handle
+    txflowID: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
@@ -360,30 +462,36 @@ class EventLogicalLinkComplete:
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
+class EventNumberOfCompletedPackets:
+    num_hdls: bytes
+    hdls_npkts: bytes
+    data: bytes
+
+    def __post_init__(self):
+        self.num_hdls = hci.i2h(self.num_hdls)
+        self.data = hci.b2h(self.data).lower()
+
+@dataclass
 class EventLEConnectionComplete:
     """
     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 929
     """
     status: bytes
-    hdl: str
+    hdl: bytes
     role: bytes
     addr_type: bytes
-    addr: str
+    addr: bytes
     conn_interval: bytes
     conn_latency: bytes
     supervision_timeout: bytes
     master_clk_acc: bytes
-    rawbytes: str
-    addr_type_str: str = ''
-    role_str: str = ''
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 18)
-        self.addr_type_str = self.addrtype2str()
-        self.role_str = self.role2str()
+        self.addr_type = addrtype2str(self.addr_type)
         self.hdl = hci.pkt_bytes_to_conn_hdl(self.hdl)
-        self.role = hci.i2h(self.role)
-        self.addr_type = hci.i2h(self.addr_type)
+        self.role = role2str(self.role)
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.conn_interval = hci.i2h(self.conn_interval)
         self.conn_latency = hci.i2h(self.conn_latency)
@@ -391,47 +499,23 @@ class EventLEConnectionComplete:
         self.master_clk_acc = hci.i2h(self.master_clk_acc)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
-    def addrtype2str(self):
-        """
-        BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
-        """
-        if self.addr_type == 0x00:
-            return f'Public' #f'Peer is using a Public Device Address'
-        elif self.addr_type == 0x01:
-            return r'Random' #f'Peer is using a Random Device Address'
-        else:
-            return f'Reserved for future use'
-
-    def role2str(self):
-        """
-        BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
-        """
-        if self.addr_type == 0x00:
-            return f'Master' #f'Connection is master'
-        elif self.addr_type == 0x01:
-            return r'Slave' #f'Connection is slave'
-        else:
-            return f'Reserved for future use'
-
 @dataclass
 class EventLEEnhancedConnectionComplete:
     """
     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 944
     """
     status: bytes
-    hdl: str
+    hdl: bytes
     role: bytes
     addr_type: bytes
-    addr: str
-    local_resolvable_addr: str
-    peer_resolvable_addr: str
+    addr: bytes
+    local_resolvable_addr: bytes
+    peer_resolvable_addr: bytes
     conn_interval: bytes
     conn_latency: bytes
     supervision_timeout: bytes
     master_clk_acc: bytes
-    rawbytes: str
-    addr_type_str: str = ''
-    role_str: str = ''
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 18)
@@ -439,31 +523,9 @@ class EventLEEnhancedConnectionComplete:
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.local_resolvable_addr = hci.pkt_bytes_to_bdaddr(self.local_resolvable_addr)
         self.peer_resolvable_addr = hci.pkt_bytes_to_bdaddr(self.peer_resolvable_addr)
-        self.addr_type_str = self.addrtype2str()
-        self.role_str = self.role2str()
+        self.addr_type = addrtype2str(self.addr_type)
+        self.role = role2str(self.role)
         self.rawbytes = hci.b2h(self.rawbytes).lower()
-
-    def addrtype2str(self):
-        """
-        BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
-        """
-        if self.addr_type == 0x00:
-            return f'Public' #f'Peer is using a Public Device Address'
-        elif self.addr_type == 0x01:
-            return r'Random' #f'Peer is using a Random Device Address'
-        else:
-            return f'Reserved for future use'
-
-    def role2str(self):
-        """
-        BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 930
-        """
-        if self.role == 0x00:
-            return f'Master' #f'Connection is master'
-        elif self.role == 0x01:
-            return r'Slave' #f'Connection is slave'
-        else:
-            return f'Reserved for future use'
 
 @dataclass
 class EventLEAdvertisingReport:
@@ -473,11 +535,11 @@ class EventLEAdvertisingReport:
     num_reports: bytes
     evt_type: bytes
     addr_type: bytes
-    addr: str # initially bytes, but shortly converted to str
+    addr: bytes
     adv_dlen: bytes
     adv_data: bytes
-    rssi: int
-    rawbytes: str
+    rssi: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(self.num_reports == 1) # FIXME LATER: just checking - the controller can cache reports & send multiple at one time, but I haven't seen this in practice yet....
@@ -496,8 +558,8 @@ class EventLEDirectAdvertisingReport:
     addr: bytes
     dir_addr_type: bytes
     dir_addr: bytes
-    rssi: int
-    rawbytes: str
+    rssi: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(self.num_reports == 1) # FIXME LATER: just checking - the controller can cache reports & send multiple at one time, but I haven't seen this in practice yet....
@@ -512,11 +574,11 @@ class EventLEConnectionUpdateComplete:
     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 934
     """
     status: bytes
-    hdl: str
+    hdl: bytes
     conn_interval: bytes
     conn_latency: bytes
     supervision_timeout: bytes
-    rawbytes: str
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 9)
@@ -529,9 +591,9 @@ class EventLEReadRemoteUsedFeaturesComplete:
     BLUETOOTH SPECIFICATION Version 4.2 [Vol 2, Part E] page 936
     """
     status: bytes
-    hdl: str
+    hdl: bytes
     le_features: bytes
-    rawbytes: str
+    rawbytes: bytes
 
     def __post_init__(self):
         assert(len(self.rawbytes) == 11)
@@ -552,10 +614,10 @@ class EventLEReadRemoteUsedFeaturesComplete:
 
 @dataclass
 class L2CAPConnectionRequest:
-    code: str # 1
-    id: str # 1
-    psm: str # 2
-    scid: str # 2
+    code: bytes
+    id: bytes
+    psm: bytes
+    scid: bytes
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
@@ -565,12 +627,12 @@ class L2CAPConnectionRequest:
 
 @dataclass
 class L2CAPConnectionResponse:
-    code: str # 1
-    id: str # 1
-    dcid: str # 2
-    scid: str # 2
-    result: str # 2
-    status: str # 2
+    code: bytes
+    id: bytes
+    dcid: bytes
+    scid: bytes
+    result: bytes
+    status: bytes
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
@@ -582,10 +644,10 @@ class L2CAPConnectionResponse:
 
 @dataclass
 class L2CAPDisconnectionRequest:
-    code: str # 1
-    id: str # 1
-    dcid: str # 2
-    scid: str # 2
+    code: bytes
+    id: bytes
+    dcid: bytes
+    scid: bytes
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
@@ -595,10 +657,10 @@ class L2CAPDisconnectionRequest:
 
 @dataclass
 class L2CAPDisconnectionResponse:
-    code: str # 1
-    id: str # 1
-    dcid: str # 2
-    scid: str # 2
+    code: bytes
+    id: bytes
+    dcid: bytes
+    scid: bytes
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
@@ -608,11 +670,11 @@ class L2CAPDisconnectionResponse:
 
 @dataclass
 class L2CAPCreateChannelRequest:
-    code: str # 1
-    id: str # 1
-    psm: str # 2
-    scid: str # 2
-    ctrlid: str
+    code: bytes
+    id: bytes
+    psm: bytes
+    scid: bytes
+    ctrlid: bytes
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
@@ -623,12 +685,12 @@ class L2CAPCreateChannelRequest:
 
 @dataclass
 class L2CAPCreateChannelResponse:
-    code: str # 1
-    id: str # 1
-    dcid: str # 2
-    scid: str # 2
-    result: str # 2
-    status: str # 2
+    code: bytes
+    id: bytes
+    dcid: bytes
+    scid: bytes
+    result: bytes
+    status: bytes
 
     def __post_init__(self):
         self.code = hci.i2h(self.code)
@@ -646,23 +708,23 @@ class L2CAPCreateChannelResponse:
 
 @dataclass
 class ATT:
-    opcode: str
-    hdl: str
-    payload: str
-    data: str
-    rawbytes: str
+    opcode: bytes
+    hdl: bytes
+    payload: bytes
+    data: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
-        self.opcode = att.opcode_to_str(self.opcode, verbose=True)
+        self.opcode = att.opcode_to_str(self.opcode, self.data)
         self.hdl = hci.i2h(hci.h2i(self.hdl), nbytes=2)
         self.data = hci.b2h(self.data)
         self.rawbytes = hci.b2h(self.rawbytes)
 
 @dataclass
 class SMP:
-    code: str
-    data: str
-    rawbytes: str
+    code: bytes
+    data: bytes
+    rawbytes: bytes
 
     def __post_init__(self):
         self.code = smp.code_to_str(self.code, verbose=True)
@@ -671,12 +733,12 @@ class SMP:
 
 @dataclass
 class SCH:
-    code: str
-    id: str
-    len: str
-    data: str
-    rawbytes: str
-    l2cap_sch_evt: str = None
+    code: bytes
+    id: bytes
+    len: bytes
+    data: bytes
+    rawbytes: bytes
+    l2cap_sch_evt: bytes = None
 
     def __post_init__(self):
         self.code = l2cap.sch_code_to_str(self.code, verbose=True)

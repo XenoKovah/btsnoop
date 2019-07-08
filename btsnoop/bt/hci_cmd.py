@@ -394,14 +394,14 @@ def parse_opcode(opcode):
     return (opcode, ogf, ocf)
 
 
-def cmd_to_str(opcode, verbose=False):
+def cmd_to_str(opcode):
     """
     Return a string representing the opcode
     """
     if opcode in HCI_COMMANDS:
-        # if verbose output is enabled, show the OGG/OCF components.
+        # show the OGG/OCF components.
         opcode, ogf, ocf = parse_opcode(opcode)
-        opstr = f' [opcode={hci.i2h(opcode, nbytes=2)} ({opcode}), ogf={hci.i2h(ogf)} ({ogf}), ocf={hci.i2h(ocf, nbytes=2)} ({ocf})]' if verbose else ''
+        opstr = f' [opcode={hci.i2h(opcode, nbytes=2)} ({opcode}), ogf={hci.i2h(ogf)} ({ogf}), ocf={hci.i2h(ocf, nbytes=2)} ({ocf})]'.lower()
         # command string
         return f'{HCI_COMMANDS[opcode]}{opstr}'
     else:
