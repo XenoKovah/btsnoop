@@ -31,7 +31,7 @@ def addrtype2str(type_):
     elif type_ == 0x03:
         return f'Resolvable (Rand. Default){code}'
     else:
-        return f'Reserved for future use'
+        return f'Reserved for future use{code}'
 
 def role2str(role):
     """
@@ -213,6 +213,42 @@ class CommandDeleteStoredLinkKey:
     def __post_init__(self):
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
         self.delete_all_flag = hci.i2h(self.delete_all_flag).lower()
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLESetScanParameters:
+    scan_type: bytes
+    scan_interval: bytes
+    scan_window: bytes
+    own_addr_type: bytes
+    filter_policy: bytes
+    rawbytes: bytes
+    def __post_init__(self):
+        hex_scan_type = hci.i2h(self.scan_type).lower()
+        self.scan_type = f'Passive Scan ({hex_scan_type})' if self.scan_type == 0x00 else f'Active Scan ({hex_scan_type})'
+        self.scan_interval = hci.b2h(self.scan_interval).lower()
+        self.scan_window = hci.b2h(self.scan_window).lower()
+        self.own_addr_type = addrtype2str(self.own_addr_type)
+        if  self.filter_policy == 0x00:
+            self.filter_policy = 'Accept All (0x00)' # except directed adv. pkts not addressed to this device
+        elif self.filter_policy == 0x01:
+            self.filter_policy = 'Accept Only (0x01)' # white-listed devices
+        elif self.filter_policy == 0x02:
+            self.filter_policy = 'Accept All (0x02)' # undirected adv. pkts; directed adv. pkts where initiator addr is a resolvable private address; directed adv. pkts to this device.
+        elif self.filter_policy == 0x03:
+            self.filter_policy = 'Accept All (0x03)' # adv. addr in white-list; directed adv. pkts where initiator addr is a resolvable private address; directed adv. pkts to this device.
+        self.rawbytes = hci.b2h(self.rawbytes).lower()
+
+@dataclass
+class CommandLESetScanEnable:
+    enable: bytes
+    filter_duplicates: bytes
+    rawbytes: bytes
+    def __post_init__(self):
+        hex_enable = hci.i2h(self.enable).lower()
+        self.enable = f'Scan Disabled ({hex_enable})' if self.enable == 0x00 else f'Scan Enabled ({hex_enable})'
+        hex_filter_duplicates = hci.i2h(self.filter_duplicates).lower()
+        self.filter_duplicates = f'Dup. Filter Disabled ({hex_filter_duplicates})' if self.filter_duplicates == 0x00 else f'Dup. Filter Enabled ({hex_filter_duplicates})'
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
@@ -433,7 +469,7 @@ class EventCommandStatus:
         assert(len(self.rawbytes) > 2)
         self.status = hci.i2h(self.status, nbytes=1)
         self.num_cmd_pkts = hci.i2h(self.num_cmd_pkts, nbytes=1)
-        self.opcode = hci_cmd.cmd_to_str(self.opcode)
+        self.opcode = hci_cmd.cmd_to_str(hci.h2i(hci.pkt_bytes_to_hci_opcode(self.opcode).lower()))
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass
@@ -543,8 +579,33 @@ class EventLEAdvertisingReport:
 
     def __post_init__(self):
         assert(self.num_reports == 1) # FIXME LATER: just checking - the controller can cache reports & send multiple at one time, but I haven't seen this in practice yet....
+        self.num_reports = hci.i2h(self.num_reports)
+
+        evt_type = hci.i2h(self.evt_type)
+        if self.evt_type == 0x00:
+            self.evt_type = f'ADV_IND ({evt_type})'
+        elif self.evt_type == 0x01:
+            self.evt_type = f'ADV_DIRECT_IND ({evt_type})'
+        elif self.evt_type == 0x02:
+            self.evt_type = f'ADV_SCAN_IND ({evt_type})'
+        elif self.evt_type == 0x03:
+            self.evt_type = f'ADV_NONCONN_IND ({evt_type})'
+        elif self.evt_type == 0x04:
+            self.evt_type = f'SCAN_RSP ({evt_type})'
+        else:
+            self.evt_type = f'Reserved ({evt_type})'
+
+        self.adv_dlen = hci.i2h(self.adv_dlen).lower()
+        adv_data = f'{hci.b2h(self.adv_data).lower()}'
+        try:
+            adv_data += f' ({self.adv_data.decode("utf-8")})'
+        except:
+            adv_data += f' ({repr(self.adv_data)})'
+        self.adv_data = adv_data
+
+        self.addr_type = addrtype2str(self.addr_type)
         self.addr = hci.pkt_bytes_to_bdaddr(self.addr)
-        self.rssi = hci.b2si(self.rssi) # convert signed-integer to correct value
+        self.rssi = f'{hci.b2si(self.rssi)} dbm' # convert signed-integer to correct value
         self.rawbytes = hci.b2h(self.rawbytes).lower()
 
 @dataclass

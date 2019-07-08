@@ -462,10 +462,10 @@ def parse_cmd_data(opcode, data):
     #     return
     # elif opcode == iHCI_COMMANDS["COMND LE_Set_Advertise_Enable"]:
     #     return
-    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Parameters"]:
-    #     return
-    # elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Enable"]:
-    #     return
+    elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Parameters"]:
+        return CommandLESetScanParameters(data[0], data[1:3], data[3:5], data[5], data[6], data)
+    elif opcode == iHCI_COMMANDS["COMND LE_Set_Scan_Enable"]:
+        return CommandLESetScanEnable(data[0], data[1], data)
     elif opcode == iHCI_COMMANDS["COMND LE_Add_Device_To_White_List"]:
         return CommandLEAddDeviceToWhiteList(data[0], data[1:7], data)
     elif opcode == iHCI_COMMANDS["COMND LE_Add_Device_To_White_List"]:
