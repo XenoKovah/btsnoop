@@ -43,6 +43,8 @@ Extract fields from packet bytes.
 
 def i2h(val, leading0x=True, nbytes=1):
     """
+    (i)nt(2)(h)ex
+
     Pretty print int as hex.
 
     @leading0x sets whether a leading '0x' will be included in the formated hex string
@@ -61,6 +63,8 @@ def i2h(val, leading0x=True, nbytes=1):
 
 def b2h(bseq, delim=' ', reverse=False, leading0x=False):
     """
+    (b)ytes(2)(h)ex
+
     Convert a sequence of bytes to its hex-formatted string representation.
 
     @reverse determines whether the bytes will be swapped/reveresed to handle endianness

@@ -2,6 +2,7 @@
 Parse ATT packets
 """
 import struct
+from bitstring import BitStream, BitArray
 
 from . import hci
 
@@ -60,14 +61,14 @@ ATT_PDUS = {
         0x12 : "ATT Write_Request", # write and request ACK
         0x13 : "ATT Write_Response",
         0x52 : "ATT Write_Command", # write (no response, no ACK, no nothing!)
-        0xD2 : "ATT Signed_Write_Command", # write, but need valid auth. signature
         0x16 : "ATT Prepare_Write_Request",
         0x17 : "ATT Prepare_Write_Response",
         0x18 : "ATT Execute_Write_Request",
         0x19 : "ATT Execute_Write_Response",
         0x1B : "ATT Handle_Value_Notification", # notify client (no ACK) - unsolicited PDUs sent to client by the server
         0x1D : "ATT Handle_Value_Indication", # notify with required ACK from client - unsolicited PDUs sent to the client by the server AND invoke confirmations
-        0x1E : "ATT Handle_Value_Confirmation" # sent in response to an indication - PDUs sent to a server to confirm receipt of an indication by a client
+        0x1E : "ATT Handle_Value_Confirmation", # sent in response to an indication - PDUs sent to a server to confirm receipt of an indication by a client
+        0xD2 : "ATT Signed_Write_Command" # write, but need valid auth. signature
     }
 iATT_PDUS = dict(map(reversed, ATT_PDUS.items()))
 
@@ -134,8 +135,10 @@ def opcode_to_str(opcode, data):
     """
     Return a string representing the ATT PDU opcode
     """
+    _att_op_byte_bits = BitArray(f'0x{opcode:02x}')
+
     if opcode in ATT_PDUS:
-        opstr = f' ({hci.i2h(opcode)})'
+        opstr = f' ({hci.i2h(opcode)}={_att_op_byte_bits.bin})'
 
         # special formatting for errors
         if opcode == iATT_PDUS["ATT Error_Response"]:

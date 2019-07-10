@@ -2,6 +2,7 @@
 Parse L2CAP packets
 """
 import struct
+import copy
 from dataclasses import dataclass
 from bitstring import BitStream, BitArray
 
@@ -203,34 +204,55 @@ PKT_TYPE_PARSERS = { hci_acl.PB_START_NON_AUTO_L2CAP_PDU : parse_hdr,
 def parse_l2cap_data(l2cap_len, l2cap_cid, l2cap_data):
 
     if l2cap_cid == L2CAP_CID_LE_ATT:
-        att_opcode, att_data = att.parse(l2cap_data)
-
-        # ATT Reads
-        if att_opcode == 0x0a:
-            pass # hdl
-        if att_opcode == 0x0b:
-            pass # val
-
-        # ATT Writes
-        if att_opcode == 0x12:
-            pass # hdl, att value-to-write
-        if att_opcode == 0x13:
-            pass # a write ACK (if received, the write was successful)
-        if att_opcode == 0x52:
-            pass # hdl, att value-to-write
-
-        # Server Initiated
-        if att_opcode == 0x1B: # Notification (Notify)
-            pass # hdl, value
-        if att_opcode == 0x1D: # Indication
-            pass # hdl, value
-        if att_opcode == 0x1C: # Confirmation
-            pass
-
-        att_handle = BitArray(att_data)[0:16] # select 1st two bytes (=16 bits)
-        att_handle.byteswap([0,2], repeat=False) # need to swap first two bytes
-        att_payload = BitArray(att_data)[16:] # leave byte-order alone in payload?
-        return pkts.ATT(att_opcode, att_handle.hex, att_payload.hex, att_data, l2cap_data)
+        # att_opcode, att_data = att.parse(l2cap_data)
+        # att_cmd_flag = None
+        # att_auth_flag = None
+        #
+        # _att_op_byte = BitArray(f'0x{att_opcode:02x}')
+        # # att_opcode = copy.copy(_att_op_byte[:6]).int # 1st 6 bits are the actual opcode
+        # # att_cmd_flag = _att_op_byte.all(1,[6]) # check cmd bit
+        # # att_auth_flag =  _att_op_byte.all(1, [7]) # check authentication signature bit
+        # # print(_att_op_byte.bin, att_opcode, att_cmd_flag, att_auth_flag)
+        #
+        # att_handle = BitArray(att_data)[0:16] # select 1st two bytes (=16 bits)
+        # att_handle.byteswap([0,2], repeat=False) # need to swap first two bytes
+        # att_payload = BitArray(att_data)[16:] # leave byte-order alone in payload?
+        #
+        # att_handle = hci.i2h(hci.h2i( att_handle.hex ), nbytes=2)
+        #
+        # # ATT Reads
+        # if att_opcode == 0x04:
+        #     # the att_payload is the end handle.
+        #     att_payload.byteswap([0,2], repeat=False)
+        #     att_payload = hci.i2h(hci.h2i( att_payload.hex ), nbytes=2)
+        # if att_opcode == 0x05:
+        #     pass
+        #
+        # # ATT Reads
+        # if att_opcode == 0x0a:
+        #     pass # hdl
+        # if att_opcode == 0x0b:
+        #     pass # val
+        #
+        # # ATT Writes
+        # if att_opcode == 0x12:
+        #     pass # hdl, att value-to-write
+        # if att_opcode == 0x13:
+        #     pass # a write ACK (if received, the write was successful)
+        # if att_opcode == 0x52:
+        #     pass # hdl, att value-to-write
+        #
+        # # Server Initiated
+        # if att_opcode == 0x1B: # Notification (Notify)
+        #     pass # hdl, value
+        # if att_opcode == 0x1D: # Indication
+        #     pass # hdl, value
+        # if att_opcode == 0x1C: # Confirmation
+        #     pass
+        #
+        #
+        # # return pkts.ATT(_att_op_byte.bin, att_opcode, att_cmd_flag, att_auth_flag, att_handle, att_payload, att_data, l2cap_data)
+        return pkts.ATT(l2cap_data)
 
     elif l2cap_cid == L2CAP_CID_SMP or l2cap_cid == L2CAP_CID_LE_SMP:
         smp_code, smp_data = smp.parse(l2cap_data)
