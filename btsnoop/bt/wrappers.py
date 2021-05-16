@@ -787,6 +787,7 @@ class ATT:
 
         self.att_opcode = att_opcode
         self.att_data = hci.b2h(att_data)
+        self.att_data_raw = att_data
 
         self.opcode2str = att.opcode_to_str(att_opcode, att_data)
         nbits2bytes = 8
