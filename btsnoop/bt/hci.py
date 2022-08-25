@@ -41,13 +41,12 @@ Extract fields from packet bytes.
 - OpCode
 """
 
-def i2h(val, leading0x=True, nbytes=1):
+def i2h(val, nbytes=1):
     """
     (i)nt(2)(h)ex
 
     Pretty print int as hex.
 
-    @leading0x sets whether a leading '0x' will be included in the formated hex string
     @nbytes sets the number of (zero-padded) bytes to use in the formated hex string
     """
     if val is not None:
@@ -57,9 +56,7 @@ def i2h(val, leading0x=True, nbytes=1):
             val = BitArray(val)
             val = val.int
         hexstr = f'0x{val:0>{nbytes*2}x}' # 1byte = XX, 2bytes = XX XX, etc.
-        if leading0x:
-            return hexstr
-        return hexstr[2:]
+        return hexstr
 
 def b2h(bseq, delim=' ', reverse=False, leading0x=False):
     """

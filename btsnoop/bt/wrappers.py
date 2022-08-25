@@ -773,7 +773,7 @@ def hexstr_from_bytes(data_bit_array, nbytes=2, doswap=True):
     data = data_bit_array
     if doswap:
         data.byteswap([0,2], repeat=False) # need to swap first two bytes
-    data = hci.i2h(hci.h2i( data.hex ), nbytes=nbytes, leading0x=True)
+    data = hci.i2h(hci.h2i( data.hex ), nbytes=nbytes)
     return data
 
 @dataclass
