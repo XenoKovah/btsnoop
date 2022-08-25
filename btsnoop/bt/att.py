@@ -2,7 +2,6 @@
 Parse ATT packets
 """
 import struct
-from bitstring import BitStream, BitArray
 
 from . import hci
 
@@ -135,10 +134,8 @@ def opcode_to_str(opcode, data):
     """
     Return a string representing the ATT PDU opcode
     """
-    _att_op_byte_bits = BitArray(f'0x{opcode:02x}')
-
     if opcode in ATT_PDUS:
-        opstr = f' ({hci.i2h(opcode)}={_att_op_byte_bits.bin})'
+        opstr = f' ({hci.i2h(opcode)}={opcode:08b})'
 
         # special formatting for errors
         if opcode == iATT_PDUS["ATT Error_Response"]:
