@@ -11,7 +11,7 @@ setuptools.setup(
     description="A Bluetooth HCI traffic snooping and parsing module.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/traviswpeters/btsnoop",
     packages=setuptools.find_packages(),
     classifiers=[
         "Bluetooth :: Python :: 3",
