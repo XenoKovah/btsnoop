@@ -79,11 +79,11 @@ Parsing a btsnoop capture file
 >>>
 >>> print len(records)
 24246
->>> print records[0]
-(1, 4, 2, datetime.datetime(2015, 4, 2, 6, 29, 25, 914577), '\x01\x03\x0c\x00')
->>> print records[24245]
-(24246, 8, 3, datetime.datetime(2015, 4, 2, 9, 9, 57, 655656), '\x04\x13\x05\x01@\x00\x01\x00')
+>>> print records[10]
+BTSnoopRecord<seq=11, length=7, flags=3 (('controller', 'host', 'event')), drops=0, ts=2022-08-24 15:46:46.057811, data=b'\x04\x13\x05\x01\x01\x0e\x01\x00'>
 ```
+
+The BTSnoopRecord is a dataclass that should make it easy to use, with all fields available as properties.
 
 Some of the information in a record can be printed as human readable strings
 
@@ -93,23 +93,23 @@ Some of the information in a record can be printed as human readable strings
 >>> print len(records)
 24246
 >>> print records[0]
-(1, 4, 2, datetime.datetime(2015, 4, 2, 6, 29, 25, 914577), '\x01\x03\x0c\x00')
+BTSnoopRecord<seq=11, length=7, flags=3 (('controller', 'host', 'event')), drops=0, ts=2022-08-24 15:46:46.057811, data=b'\x04\x13\x05\x01\x01\x0e\x01\x00'>
 >>> record = records[0]
->>> seq_nbr = record[0]
->>> pkt_len = record[1]
->>> flags = bts.flags_to_str(record[2])
->>> timestamp = record[3]
->>> data = record[4]
->>> print seq_nbr
+>>> seq_nbr = record.seq
+>>> pkt_len = record.length
+>>> flags = bts.flags_to_str(record.flags)
+>>> timestamp = record.ts
+>>> data = record.data
+>>> print(seq_nbr)
 1
->>> print pkt_len
+>>> print(pkt_len)
 4
->>> print flags
-('host', 'controller', 'command')
->>> print timestamp
-2015-04-02 06:29:25.914577
->>> print data
-'\x01\x03\x0c\x00'
+>>> print(flags)
+('controller', 'host', 'event')
+>>> print(timestamp)
+2022-08-24 15:46:46.057811
+>>> print(data)
+b'\x04\x13\x05\x01\x01\x0e\x01\x00'
 ```
 
 ### bt
