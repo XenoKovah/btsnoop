@@ -14,7 +14,11 @@ NOTE: When using btmon to capture a btsnoop file, it too uses a different format
 """
 
 
+import dataclasses
 import datetime
+import enum
+import typing
+
 import sys
 import struct
 
@@ -24,12 +28,34 @@ From bluez/src/shared/btsnoop.h (v5.50), btsnoop format values:
 """
 BTSNOOP_FORMAT_INVALID   = 0
 BTSNOOP_FORMAT_HCI       = 1001
-BTSNOOP_FORMAT_UART      = 1002  # << this module currently only supports this format
+BTSNOOP_FORMAT_UART      = 1002  # << this module currently only supports this format, also known as H4
 BTSNOOP_FORMAT_BCSP      = 1003
 BTSNOOP_FORMAT_3WIRE     = 1004
-BTSNOOP_FORMAT_MONITOR   = 2001
+BTSNOOP_FORMAT_MONITOR   = 2001  # << also supported
 BTSNOOP_FORMAT_SIMULATOR = 2002
 
+
+class BTSnoopOpcode(enum.Enum):
+    NEW_INDEX = 0
+    DEL_INDEX = 1
+    COMMAND_PKT = 2
+    EVENT_PKT = 3
+    ACL_TX_PKT = 4
+    ACL_RX_PKT = 5
+    SCO_TX_PKT = 6
+    SCO_RX_PKT = 7
+    OPEN_INDEX = 8
+    CLOSE_INDEX = 9
+    INDEX_INFO = 10
+    VENDOR_DIAG = 11
+    SYSTEM_NOTE = 12
+    USER_LOGGING = 13
+    CTRL_OPEN = 14
+    CTRL_CLOSE = 15
+    CTRL_COMMAND = 16
+    CTRL_EVENT = 17
+    ISO_TX_PKT = 18
+    ISO_RX_PKT = 19
 
 """
 Record flags conform to:
@@ -46,6 +72,25 @@ BTSNOOP_FLAGS = {
         2 : ("host", "controller", "command"),
         3 : ("controller", "host", "event")
     }
+
+
+@dataclasses.dataclass
+class BTSnoopRecord:
+    """
+    Friendly access to individual records
+    apple packet logger uses this natively...
+    """
+    seq: int
+    length: int
+    flags: int
+    drops: typing.Optional[int]
+    ts: datetime.datetime
+    data: bytearray
+
+    def __repr__(self):
+        # lets us humanize flags
+        return f"BTSnoopRecord<seq={self.seq}, length={self.length}, flags={self.flags} ({flags_to_str(self.flags)}), " \
+            f"drops={self.drops}, ts={self.ts}, data={self.data}>"
 
 
 def flags_to_str(flags):
@@ -132,14 +177,7 @@ def parse(filename, verbose=True, zero_based_index=False):
         if (identification == "btsnoop\0"):
 
             _validate_btsnoop_file_header(identification, version, type, verbose)
-
-            # Not using the following data:
-            # record[1] - original length
-            # record[4] - cumulative drops
-            rmap = map(lambda record:
-                (record[0], record[2], record[3], _parse_time(record[5]), record[6]),
-                _read_btsnoop_packet_records(f, zero_based_index))
-            return list(rmap) ### explictly convert map to list object; python2->python3
+            return [r for r in _read_btsnoop_packet_records(f, type, zero_based_index)]
 
         else:  # nope.... try Apple PacketLogger Format?
             pklg_version2 = (identification[1] == 0x01)
@@ -147,10 +185,8 @@ def parse(filename, verbose=True, zero_based_index=False):
             # Validate and rewind because PacketLogger files have no file header
             _validate_packetlogger_file(identification)
             f.seek(0)
-            rmap = map(lambda record:
-                (record[0], record[1], record[2], record[3], record[4]),
-                _read_packetlogger_records(f, pklg_version2))
-            return list(rmap) ### explictly convert map to list object; python2->python3
+            # karl - untested, but returns native high level type now...
+            return [r for r in _read_packetlogger_records(f, pklg_version2)]
 
 
 def _read_file_header(f):
@@ -189,10 +225,9 @@ def _validate_btsnoop_file_header(identification, version, data_link_type, verbo
     For SWAP, data link type should be:
         HCI UART (H4)	1002
     """
-    # print(f'_validate_btsnoop_file_header( identification={identification}, version={version}, data_link_type={data_link_type} )')
     assert identification == "btsnoop\0"
     assert version == 1
-    assert data_link_type == BTSNOOP_FORMAT_UART
+    assert data_link_type in [BTSNOOP_FORMAT_UART, BTSNOOP_FORMAT_MONITOR]
     if verbose:
         print(f'btsnoop capture file version {version}, type {data_link_type}')
 
@@ -205,7 +240,25 @@ def _validate_packetlogger_file(identification):
     assert (identification[0] != 0x00 or (identification[1] != 0x00 and identification[1] != 0x01))
 
 
-def _read_btsnoop_packet_records(f, zero_based_index=False):
+def _btmon2h4(flags: int):
+    """Turns a btmon opcode into a hci-h4 uart opcode/flags pair"""
+    op = BTSnoopOpcode(flags)
+    if op == BTSnoopOpcode.COMMAND_PKT:
+        return 1, 2
+    if op == BTSnoopOpcode.ACL_RX_PKT:
+        return 2, 1
+    if op == BTSnoopOpcode.ACL_TX_PKT:
+        return 2, 0
+    if op == BTSnoopOpcode.SCO_RX_PKT:
+        return 3, 1
+    if op == BTSnoopOpcode.SCO_TX_PKT:
+        return 3, 0
+    if op == BTSnoopOpcode.EVENT_PKT:
+        return 4, 3
+    return None
+
+
+def _read_btsnoop_packet_records(f, type, zero_based_index=False):
     """
     A record should confirm to the following format
 
@@ -246,7 +299,22 @@ def _read_btsnoop_packet_records(f, zero_based_index=False):
         data = f.read(inc_len)
         assert len(data) == inc_len
 
-        yield ( seq_nbr, orig_len, inc_len, flags, drops, time64, data )
+        ts = _parse_time(time64)
+        # XXX we're explicitly ignoring the "orig_length" field!
+        if type == BTSNOOP_FORMAT_MONITOR:
+            # ok, we're cheating hard here, and rewriting flags to make monitor records
+            # look like H4/UART records, much as we do for apple packet logger
+            adapter = flags >> 16  # we're going to just ignore this right now...
+            flags = flags & 0xffff
+            ut_flags = _btmon2h4(flags)
+            if ut_flags:
+                data = struct.pack('B', ut_flags[0]) + data
+                flags = ut_flags[1]
+            else:
+                print(f"Ooops, unsupported btmon opcode: {flags}")
+                continue
+
+        yield BTSnoopRecord(seq=seq_nbr, length=inc_len, flags=flags, drops=drops, ts=ts, data=data)
         seq_nbr += 1
 
 
@@ -302,7 +370,7 @@ def _read_packetlogger_records(f, pklg_version2, zero_based_index=False):
         secs = timestamp >> 32
         usecs = timestamp & 0xffffffff
         timestamp = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=secs, microseconds=usecs)
-        yield (seq_nbr, length, pkt_type, timestamp, data)
+        yield BTSnoopRecord(seq=seq_nbr, length=length, flags=pkt_type, drops=None, ts=timestamp, data=data)
         seq_nbr += 1
 
 
