@@ -1,6 +1,7 @@
 """
 Parse HCI ACL packets
 """
+import dataclasses
 import struct
 import ctypes
 from ctypes import c_uint
@@ -52,12 +53,25 @@ PB_FLAGS = {
         PB_COMPLETE_L2CAP_PDU : "ACL_PB COMPLETE_L2CAP_PDU"
     }
 
+
+@dataclasses.dataclass
+class HciPacketACL:
+    handle: int
+    pb: int
+    bc: int
+    length: int
+    data: bytearray
+
+    def __repr__(self):
+        return f"HciPacketACL(handle={self.handle}, pb={self.pb} ({pb_to_str(self.pb)}, bc={self.bc}, length={self.length}, data={self.data})"
+
 def pb_to_str(pb):
     """
     Return a string representing the packet boundary flag
     """
     assert pb in [0, 1, 2, 3]
     return PB_FLAGS[pb]
+
 
 
 def parse(data):
@@ -77,4 +91,4 @@ def parse(data):
     bc = int(hdr.b.bc)
     length = int(hdr.b.length)
     # print(f'ACL::{struct.unpack("<BB", data[:2])}', handle, pb, bc, length)
-    return (handle, pb, bc, length, data[4:])
+    return HciPacketACL(handle, pb, bc, length, data[4:])
