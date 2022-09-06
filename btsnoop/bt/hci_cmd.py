@@ -504,4 +504,4 @@ def parse(data):
     Returns a tuple of (opcode, length, data)
     """
     opcode, length = struct.unpack("<HB", data[:3])
-    return opcode, length, data[3:]
+    return parse_cmd_data(opcode, data[3:])

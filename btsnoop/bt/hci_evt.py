@@ -385,8 +385,8 @@ def parse(data):
     # print(f'EVT::{struct.unpack("<H", data[:2])}', evtcode, length)
 
     if evtcode != HCI_LE_META_EVENT: ## Non-LE
-        return (evtcode, length, None, data[2:])
+        return parse_evt_data(evtcode, None, data[2:])
     else: ## LE
         subevtcode = struct.unpack("<B", data[2:3])[0]
         # length -= 1 # Subtract length of SubEvent code # TODO: while this makes sense, does the protocol do it like this? or is the length inclusive of everything (even the subevt code?)
-        return (evtcode, length, subevtcode, data[3:])
+        return parse_evt_data(evtcode, subevtcode, data[3:])
