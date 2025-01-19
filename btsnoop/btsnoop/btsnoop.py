@@ -294,7 +294,9 @@ def _read_btsnoop_packet_records(f, type, zero_based_index=False):
 
         orig_len, inc_len, flags, drops, time64 = struct.unpack( ">IIIIq", pkt_hdr)
         assert orig_len == inc_len
-
+        # Skip some known-invalid values that can happen because of truncated files
+        if(inc_len == 0 or time64 == 0):
+            continue
         data = f.read(inc_len)
         assert len(data) == inc_len
 
@@ -310,7 +312,7 @@ def _read_btsnoop_packet_records(f, type, zero_based_index=False):
                 data = struct.pack('B', ut_flags[0]) + data
                 flags = ut_flags[1]
             else:
-                print(f"Ooops, unsupported btmon opcode: {flags}")
+                #print(f"Ooops, unsupported btmon opcode: {flags}")
                 continue
 
         yield BTSnoopRecord(seq=seq_nbr, length=inc_len, flags=flags, drops=drops, ts=ts, data=data)
