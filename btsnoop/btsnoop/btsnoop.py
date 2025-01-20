@@ -297,25 +297,32 @@ def _read_btsnoop_packet_records(f, type, zero_based_index=False):
         # Skip some known-invalid values that can happen because of truncated files
         if(inc_len == 0 or time64 == 0):
             continue
-        data = f.read(inc_len)
-        assert len(data) == inc_len
+        try:
+            data = f.read(inc_len)
+            assert len(data) == inc_len
+        except Exception as e:
+            print(f"Probable truncated file encountered")
+            break
+        try:
+            ts = _parse_time(time64)
+            # XXX we're explicitly ignoring the "orig_length" field!
+            if type == BTSNOOP_FORMAT_MONITOR:
+                # ok, we're cheating hard here, and rewriting flags to make monitor records
+                # look like H4/UART records, much as we do for apple packet logger
+                adapter = flags >> 16  # we're going to just ignore this right now...
+                flags = flags & 0xffff
+                ut_flags = _btmon2h4(flags)
+                if ut_flags:
+                    data = struct.pack('B', ut_flags[0]) + data
+                    flags = ut_flags[1]
+                else:
+                    #print(f"Ooops, unsupported btmon opcode: {flags}")
+                    continue
 
-        ts = _parse_time(time64)
-        # XXX we're explicitly ignoring the "orig_length" field!
-        if type == BTSNOOP_FORMAT_MONITOR:
-            # ok, we're cheating hard here, and rewriting flags to make monitor records
-            # look like H4/UART records, much as we do for apple packet logger
-            adapter = flags >> 16  # we're going to just ignore this right now...
-            flags = flags & 0xffff
-            ut_flags = _btmon2h4(flags)
-            if ut_flags:
-                data = struct.pack('B', ut_flags[0]) + data
-                flags = ut_flags[1]
-            else:
-                #print(f"Ooops, unsupported btmon opcode: {flags}")
-                continue
-
-        yield BTSnoopRecord(seq=seq_nbr, length=inc_len, flags=flags, drops=drops, ts=ts, data=data)
+            yield BTSnoopRecord(seq=seq_nbr, length=inc_len, flags=flags, drops=drops, ts=ts, data=data)
+        except Exception as e:
+            print(f"Encountered unknown exception. Investigate: {e}")
+            break
         seq_nbr += 1
 
 
